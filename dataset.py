@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-import tqdm
+from tqdm import tqdm
 
 def compute_data_mean(directory_path):
     if not os.path.exists(directory_path):
@@ -69,7 +69,7 @@ class AnimeDataSet(Dataset):
         anime_index = index
         if anime_index > self.len_anime - 1:
             anime_index -= self.len_anime * (index // self.len_anime)
-        anime_path = self.image_files_dict[self.style_directory][index]
+        anime_path = self.image_files_dict[self.style_directory][anime_index]
         image = cv2.imread(anime_path)[:,:,::-1]
         image_gray = cv2.cvtColor(image.copy(), cv2.COLOR_BGR2GRAY)
         image_gray = np.stack([image_gray, image_gray, image_gray], axis=-1)
@@ -80,7 +80,7 @@ class AnimeDataSet(Dataset):
         anime, anime_gray = torch.tensor(image), torch.tensor(image_gray)
 
         # get smooth gray anime image
-        smooth_anime_image_path = self.image_files_dict[self.smooth_directory][index]
+        smooth_anime_image_path = self.image_files_dict[self.smooth_directory][anime_index]
         image = cv2.imread(smooth_anime_image_path, cv2.IMREAD_GRAYSCALE)
         image = np.stack([image, image, image], axis=-1)
         image = self.normalize(image, addmean=False)
