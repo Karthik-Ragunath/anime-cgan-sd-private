@@ -10,12 +10,9 @@ from torch.utils.data import DataLoader
 from modeling.anime_gan_rewrite import ImageGenerator as Generator
 from modeling.anime_gan_rewrite import ImageDiscriminator as Discriminator
 from dataset import AnimeDataSet
-from modeling.vgg import Vgg19
 from tqdm import tqdm
 import gc
-
-gaussian_mean = torch.tensor(0.0)
-gaussian_std = torch.tensor(0.1)
+import torchvision.models as models
 
 color_format_transform_kernel = torch.tensor([
     [0.299, -0.14714119, 0.61497538],
@@ -51,19 +48,6 @@ def load_checkpoint(model, checkpoint_dir, posfix=''):
     gc.collect()
     return epoch
 
-class ChromaticLoss(nn.Module):
-    def __init__(self):
-        super(ChromaticLoss, self).__init__()
-        self.huber_loss = nn.SmoothL1Loss()
-        self.l1_loss = nn.L1Loss()
-
-    def forward(self, real_image, fake_image_generated):
-        rgb_to_yuv_real = rgb_to_yuv(real_image)
-        rgb_to_yuv_fake = rgb_to_yuv(fake_image_generated)
-        return (self.l1_loss(rgb_to_yuv_real[:, :, :, 0], rgb_to_yuv_fake[:, :, :, 0]) +
-                self.huber_loss(rgb_to_yuv_real[:, :, :, 1], rgb_to_yuv_fake[:, :, :, 1]) +
-                self.huber_loss(rgb_to_yuv_real[:, :, :, 2], rgb_to_yuv_fake[:, :, :, 2]))
-
 class AnimeGANLossCalculator:
     def __init__(self, args):
         self.args = args
@@ -95,6 +79,42 @@ class AnimeGANLossCalculator:
             torch.mean(torch.square(real_anime_gray_d)) +
             0.2 * torch.mean(torch.square(real_anime_smooth_gray_d))
         )
+    
+class Vgg19(nn.Module):
+    def __init__(self):
+        super(Vgg19, self).__init__()
+        self.vgg19 = self.get_vgg19_subset_layers().eval()
+        self.vgg_mean = torch.tensor([0.485, 0.456, 0.406]).float()
+        self.vgg_std = torch.tensor([0.229, 0.224, 0.225]).float()
+        self.mean = self.vgg_mean.view(-1, 1 ,1)
+        self.std = self.vgg_std.view(-1, 1, 1)
+
+    def forward(self, x):
+        return self.vgg19(self.norm(x))
+    
+    def norm(self, image):
+        image = (image + 1.0) / 2.0
+        return (image - self.mean) / self.std
+
+    @staticmethod
+    def get_vgg19_subset_layers(last_layer='conv4_4'):
+        vgg = models.vgg19(pretrained=torch.cuda.is_available()).features
+        model_list = []
+        conv_2d_index = 0
+        max_pool_index = 1
+        for layer in vgg.children():
+            if isinstance(layer, nn.Conv2d):
+                conv_2d_index += 1
+            elif isinstance(layer, nn.MaxPool2d):
+                conv_2d_index = 0
+                max_pool_index += 1
+            name = f'conv{max_pool_index}_{conv_2d_index}' # to identify last layer to break the loop
+            if name == last_layer:
+                model_list.append(layer)
+                break
+            model_list.append(layer)
+        model = nn.Sequential(*model_list)
+        return model
     
 def set_lr(optimizer, lr):
     for param_group in optimizer.param_groups:
@@ -240,8 +260,8 @@ def main():
         shuffle=True,
         collate_fn=collate_fn,
     )
-    optimizer_g = optim.Adam(G.parameters(), lr=args.lr_g, betas=(0.5, 0.999))
-    optimizer_d = optim.Adam(D.parameters(), lr=args.lr_d, betas=(0.5, 0.999))
+    optimizer_generator = optim.Adam(G.parameters(), lr=args.lr_g, betas=(0.5, 0.999))
+    optimizer_discriminator = optim.Adam(D.parameters(), lr=args.lr_d, betas=(0.5, 0.999))
 
     start_epoch = 0
     if args.resume == 'GD':
@@ -260,62 +280,85 @@ def main():
 
     for e in range(start_epoch, args.epochs):
         print(f"Epoch {e}/{args.epochs}")
-        bar = tqdm(data_loader)
+        progress_bar = tqdm(data_loader)
         G.train()
         init_losses = []
         if e < args.init_epochs:
-            set_lr(optimizer_g, args.init_lr)
-            for real_image, *_ in bar:
+            set_lr(optimizer_generator, args.init_lr)
+            for real_image, *_ in progress_bar:
                 real_image = real_image.cuda()
-                optimizer_g.zero_grad()
-                fake_img = G(real_image)
-                loss = anime_gan_loss_obj.calculate_vgg_content_loss(real_image, fake_img)
+                optimizer_generator.zero_grad()
+                fake_image_generated = G(real_image)
+                loss = anime_gan_loss_obj.calculate_vgg_content_loss(real_image, fake_image_generated)
                 loss.backward()
-                optimizer_g.step()
+                optimizer_generator.step()
                 init_losses.append(loss.cpu().detach().numpy())
                 avg_content_loss = sum(init_losses) / len(init_losses)
-                bar.set_description(f'[Init Training G] content loss: {avg_content_loss:2f}')
+                progress_bar.set_description(f'[Init Training G] content loss: {avg_content_loss:2f}')
             # Save under init epoch condition
-            set_lr(optimizer_g, args.lr_g)
-            save_checkpoint(G, optimizer_g, e, args, posfix='_init')
+            set_lr(optimizer_generator, args.lr_g)
+            save_checkpoint(G, optimizer_generator, e, args, posfix='_init')
             save_samples(G, data_loader, args, subname='initg')
             continue
 
         loss_tracker.reset_epoch_tracking()
-        for real_image, anime, anime_gray, anime_smt_gray in bar:
+        for real_image, anime_image, anime_gray_image, anime_smoothened_gray_image in progress_bar:
             real_image = real_image.cuda()
-            anime = anime.cuda()
-            anime_gray = anime_gray.cuda()
-            anime_smt_gray = anime_smt_gray.cuda()
-            optimizer_d.zero_grad()
-            fake_img = G(real_image).detach()
-            fake_d = D(fake_img)
-            real_anime_d = D(anime)
-            real_anime_gray_d = D(anime_gray)
-            real_anime_smt_gray_d = D(anime_smt_gray)
-            loss_d = anime_gan_loss_obj.compute_discriminator_loss(fake_d, real_anime_d, real_anime_gray_d, real_anime_smt_gray_d)
-            loss_d.backward()
-            optimizer_d.step()
-            loss_tracker.modify_epoch_discriminator_loss(loss_d)
+            anime_image = anime_image.cuda()
+            anime_gray_image = anime_gray_image.cuda()
+            anime_smoothened_gray_image = anime_smoothened_gray_image.cuda()
+            optimizer_discriminator.zero_grad()
+            fake_image_generated = G(real_image).detach() # we are detaching generated fake image, because we are optimizing discriminator parameters here
+            fake_image_discriminator_val = D(fake_image_generated) 
+            real_anime_image_discriminator_val = D(anime_image)
+            real_anime_gray_image_discriminator_val = D(anime_gray_image)
+            real_anime_smoothened_gray_image_discriminator_val = D(anime_smoothened_gray_image)
+            discriminator_loss = anime_gan_loss_obj.compute_discriminator_loss(fake_image_discriminator_val, real_anime_image_discriminator_val, real_anime_gray_image_discriminator_val, real_anime_smoothened_gray_image_discriminator_val)
+            discriminator_loss.backward()
+            optimizer_discriminator.step()
+            loss_tracker.modify_epoch_discriminator_loss(discriminator_loss)
 
-            optimizer_g.zero_grad()
-            fake_img = G(real_image)
-            fake_d = D(fake_img)
-            adv_loss, con_loss, gra_loss, col_loss = anime_gan_loss_obj.compute_generator_loss(fake_img, real_image, fake_d, anime_gray)
-            loss_g = adv_loss + con_loss + gra_loss + col_loss
+            optimizer_generator.zero_grad()
+            fake_image_generated = G(real_image) # here generated image is not detached since we are optimizing generator parameters
+            fake_image_discriminator_val = D(fake_image_generated)
+            adversarial_loss, content_loss, gram_loss, chromatic_loss = anime_gan_loss_obj.compute_generator_loss(fake_image_generated, real_image, fake_image_discriminator_val, anime_gray_image)
+            loss_g = adversarial_loss + content_loss + gram_loss + chromatic_loss
             loss_g.backward()
-            optimizer_g.step()
-            loss_tracker.modify_epoch_generator_loss(adv_loss, gra_loss, col_loss, con_loss)
-            avg_adv, avg_gram, avg_color, avg_content = loss_tracker.compute_average_epoch_generator_loss()
-            avg_adv_d = loss_tracker.compute_average_epoch_discriminator_loss()
-            bar.set_description(f'loss G: adv {avg_adv:2f} con {avg_content:2f} gram {avg_gram:2f} color {avg_color:2f} / loss D: {avg_adv_d:2f}')
+            optimizer_generator.step()
+            loss_tracker.modify_epoch_generator_loss(adversarial_loss, gram_loss, chromatic_loss, content_loss)
+            average_epoch_adversarial_loss, average_epoch_gram_loss, average_epoch_chromatic_loss, average_epoch_content_loss = loss_tracker.compute_average_epoch_generator_loss()
+            average_epoch_adversarial_discriminator_loss = loss_tracker.compute_average_epoch_discriminator_loss()
+            progress_bar.set_description(f'loss G: adversarial_gen {average_epoch_adversarial_loss:2f} content {average_epoch_content_loss:2f} gram {average_epoch_gram_loss:2f} chromtic/color {average_epoch_chromatic_loss:2f} / discriminator avg loss: {average_epoch_adversarial_discriminator_loss:2f}')
 
         # Save the model at specific intervals
         if e % args.save_interval == 0:
-            save_checkpoint(G, optimizer_g, e, args)
-            save_checkpoint(D, optimizer_d, e, args)
+            save_checkpoint(G, optimizer_generator, e, args)
+            save_checkpoint(D, optimizer_discriminator, e, args)
             save_samples(G, data_loader, args)
 
+class ChromaticLoss(nn.Module):
+    def __init__(self):
+        super(ChromaticLoss, self).__init__()
+        self.huber_loss = nn.SmoothL1Loss()
+        self.l1_loss = nn.L1Loss()
+
+    def forward(self, real_image, fake_image_generated):
+        rgb_to_yuv_real = rgb_to_yuv(real_image)
+        rgb_to_yuv_fake = rgb_to_yuv(fake_image_generated)
+        rgb_to_yuv_real_channel_0 = rgb_to_yuv_real[:, :, :, 0]
+        rgb_to_yuv_real_channel_1 = rgb_to_yuv_real[:, :, :, 1]
+        rgb_to_yuv_real_channel_2 = rgb_to_yuv_real[:, :, :, 2]
+        rgb_to_yuv_fake_channel_0 = rgb_to_yuv_fake[:, :, :, 0]
+        rgb_to_yuv_fake_channel_1 = rgb_to_yuv_fake[:, :, :, 1]
+        rgb_to_yuv_real_channel_2 = rgb_to_yuv_fake[:, :, :, 2]
+        channel_0_loss = self.l1_loss(rgb_to_yuv_real_channel_0, rgb_to_yuv_fake_channel_0)
+        channel_1_loss = self.huber_loss(rgb_to_yuv_real_channel_1, rgb_to_yuv_fake_channel_1)
+        channel_2_loss = self.huber_loss(rgb_to_yuv_real_channel_2, rgb_to_yuv_real_channel_2)
+        return (
+            channel_0_loss +
+            channel_1_loss +
+            channel_2_loss
+        )
 
 if __name__ == '__main__':
     main()
