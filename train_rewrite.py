@@ -183,7 +183,6 @@ def collate_fn(batch):
         torch.stack(anime_smt_gray, 0),
     )
 
-
 def check_params(args):
     data_path = os.path.join(args.data_dir, args.dataset)
     if not os.path.exists(data_path):
@@ -226,19 +225,13 @@ def save_samples(generator, loader, args, max_imgs=2, subname='gen'):
         save_path = os.path.join(args.save_image_dir, f'{subname}_{i}.jpg')
         cv2.imwrite(save_path, img[..., ::-1])
 
-def main(args):
+def main():
+    args = parse_args()
     check_params(args)
-
-    print("Init models...")
-
     G = Generator(args.dataset).cuda()
     D = Discriminator(args).cuda()
-
     loss_tracker = LossTracker()
-
     anime_gan_loss_obj = AnimeGANLossCalculator(args)
-
-    # Create DataLoader
     data_loader = DataLoader(
         AnimeDataSet(args),
         batch_size=args.batch_size,
@@ -247,101 +240,77 @@ def main(args):
         shuffle=True,
         collate_fn=collate_fn,
     )
-
     optimizer_g = optim.Adam(G.parameters(), lr=args.lr_g, betas=(0.5, 0.999))
     optimizer_d = optim.Adam(D.parameters(), lr=args.lr_d, betas=(0.5, 0.999))
 
-    start_e = 0
+    start_epoch = 0
     if args.resume == 'GD':
-        # Load G and D
         try:
-            start_e = load_checkpoint(G, args.checkpoint_dir)
+            start_epoch = load_checkpoint(G, args.checkpoint_dir)
             print("G weight loaded")
             load_checkpoint(D, args.checkpoint_dir)
             print("D weight loaded")
         except Exception as e:
             print('Could not load checkpoint, train from scratch', e)
     elif args.resume == 'G':
-        # Load G only
         try:
-            start_e = load_checkpoint(G, args.checkpoint_dir, posfix='_init')
+            start_epoch = load_checkpoint(G, args.checkpoint_dir, posfix='_init')
         except Exception as e:
             print('Could not load G init checkpoint, train from scratch', e)
 
-    for e in range(start_e, args.epochs):
+    for e in range(start_epoch, args.epochs):
         print(f"Epoch {e}/{args.epochs}")
         bar = tqdm(data_loader)
         G.train()
-
         init_losses = []
-
         if e < args.init_epochs:
-            # Train with content loss only
             set_lr(optimizer_g, args.init_lr)
-            for img, *_ in bar:
-                img = img.cuda()
-                
+            for real_image, *_ in bar:
+                real_image = real_image.cuda()
                 optimizer_g.zero_grad()
-
-                fake_img = G(img)
-                loss = anime_gan_loss_obj.calculate_vgg_content_loss(img, fake_img)
+                fake_img = G(real_image)
+                loss = anime_gan_loss_obj.calculate_vgg_content_loss(real_image, fake_img)
                 loss.backward()
                 optimizer_g.step()
-
                 init_losses.append(loss.cpu().detach().numpy())
                 avg_content_loss = sum(init_losses) / len(init_losses)
                 bar.set_description(f'[Init Training G] content loss: {avg_content_loss:2f}')
-
+            # Save under init epoch condition
             set_lr(optimizer_g, args.lr_g)
             save_checkpoint(G, optimizer_g, e, args, posfix='_init')
             save_samples(G, data_loader, args, subname='initg')
             continue
 
         loss_tracker.reset_epoch_tracking()
-        for img, anime, anime_gray, anime_smt_gray in bar:
-            # To cuda
-            img = img.cuda()
+        for real_image, anime, anime_gray, anime_smt_gray in bar:
+            real_image = real_image.cuda()
             anime = anime.cuda()
             anime_gray = anime_gray.cuda()
             anime_smt_gray = anime_smt_gray.cuda()
-
-            # ---------------- TRAIN D ---------------- #
             optimizer_d.zero_grad()
-            fake_img = G(img).detach()
-
+            fake_img = G(real_image).detach()
             fake_d = D(fake_img)
             real_anime_d = D(anime)
             real_anime_gray_d = D(anime_gray)
             real_anime_smt_gray_d = D(anime_smt_gray)
-
-            loss_d = anime_gan_loss_obj.compute_discriminator_loss(
-                fake_d, real_anime_d, real_anime_gray_d, real_anime_smt_gray_d)
-
+            loss_d = anime_gan_loss_obj.compute_discriminator_loss(fake_d, real_anime_d, real_anime_gray_d, real_anime_smt_gray_d)
             loss_d.backward()
             optimizer_d.step()
-
             loss_tracker.modify_epoch_discriminator_loss(loss_d)
 
-            # ---------------- TRAIN G ---------------- #
             optimizer_g.zero_grad()
-
-            fake_img = G(img)
+            fake_img = G(real_image)
             fake_d = D(fake_img)
-
-            adv_loss, con_loss, gra_loss, col_loss = anime_gan_loss_obj.compute_generator_loss(
-                fake_img, img, fake_d, anime_gray)
-
+            adv_loss, con_loss, gra_loss, col_loss = anime_gan_loss_obj.compute_generator_loss(fake_img, real_image, fake_d, anime_gray)
             loss_g = adv_loss + con_loss + gra_loss + col_loss
-
             loss_g.backward()
             optimizer_g.step()
-
             loss_tracker.modify_epoch_generator_loss(adv_loss, gra_loss, col_loss, con_loss)
-
             avg_adv, avg_gram, avg_color, avg_content = loss_tracker.compute_average_epoch_generator_loss()
             avg_adv_d = loss_tracker.compute_average_epoch_discriminator_loss()
             bar.set_description(f'loss G: adv {avg_adv:2f} con {avg_content:2f} gram {avg_gram:2f} color {avg_color:2f} / loss D: {avg_adv_d:2f}')
 
+        # Save the model at specific intervals
         if e % args.save_interval == 0:
             save_checkpoint(G, optimizer_g, e, args)
             save_checkpoint(D, optimizer_d, e, args)
@@ -349,11 +318,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    args = parse_args()
-
-    print("# ==== Train Config ==== #")
-    for arg in vars(args):
-        print(arg, getattr(args, arg))
-    print("==========================")
-
-    main(args)
+    main()
