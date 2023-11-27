@@ -39,10 +39,13 @@ def rgb_to_yuv(image):
 
 def load_checkpoint(model, checkpoint_dir, posfix=''):
     path = os.path.join(checkpoint_dir, f'{model.name}{posfix}.pth')
-    checkpoint = torch.load(path,  map_location='cuda:0') if torch.cuda.is_available() else \
-        torch.load(path,  map_location='cpu')
+    if torch.cuda.is_available():
+        checkpoint = torch.load(path,  map_location='cuda:0')
+    else:
+        checkpoint = torch.load(path,  map_location='cpu')
     model.load_state_dict(checkpoint['model_state_dict'], strict=True)
     epoch = checkpoint['epoch']
+    # since the model is big, it is necessary to clean the cache and garbage collector manually
     del checkpoint
     torch.cuda.empty_cache()
     gc.collect()
@@ -65,20 +68,10 @@ class AnimeGANLossCalculator:
         fake_feat = self.vgg19_model(fake_img)
         anime_feat = self.vgg19_model(anime_gray)
         img_feat = self.vgg19_model(img).detach()
-        return [
-            self.args.adversarial_loss_gen_weight * torch.mean(torch.square(fake_logit - 1.0)),
-            self.args.content_loss_weight * self.content_loss(img_feat, fake_feat),
-            self.args.gram_loss_weight * self.gramian_loss(gram_matrix_compute(anime_feat), gram_matrix_compute(fake_feat)),
-            self.args.chromatic_loss_weight * self.chromatic_loss(img, fake_img),
-        ]
+        return [self.args.adversarial_loss_gen_weight * torch.mean(torch.square(fake_logit - 1.0)), self.args.content_loss_weight * self.content_loss(img_feat, fake_feat), self.args.gram_loss_weight * self.gramian_loss(gram_matrix_compute(anime_feat), gram_matrix_compute(fake_feat)), self.args.chromatic_loss_weight * self.chromatic_loss(img, fake_img)]
 
     def compute_discriminator_loss(self, fake_img_d, real_anime_d, real_anime_gray_d, real_anime_smooth_gray_d):
-        return self.args.adversarial_loss_disc_weight * (
-            torch.mean(torch.square(real_anime_d - 1.0)) +
-            torch.mean(torch.square(fake_img_d)) +
-            torch.mean(torch.square(real_anime_gray_d)) +
-            0.2 * torch.mean(torch.square(real_anime_smooth_gray_d))
-        )
+        return self.args.adversarial_loss_disc_weight * (torch.mean(torch.square(real_anime_d - 1.0)) + torch.mean(torch.square(fake_img_d)) + torch.mean(torch.square(real_anime_gray_d)) + 0.2 * torch.mean(torch.square(real_anime_smooth_gray_d)))
     
 class Vgg19(nn.Module):
     def __init__(self):
@@ -195,13 +188,8 @@ def parse_args():
 
 
 def collate_fn(batch):
-    img, anime, anime_gray, anime_smt_gray = zip(*batch)
-    return (
-        torch.stack(img, 0),
-        torch.stack(anime, 0),
-        torch.stack(anime_gray, 0),
-        torch.stack(anime_smt_gray, 0),
-    )
+    real_image, anime_image, anime_grayscale_image, anime_smoothened_grayscale_image = zip(*batch)
+    return torch.stack(real_image, 0), torch.stack(anime_image, 0), torch.stack(anime_grayscale_image, 0), torch.stack(anime_smoothened_grayscale_image, 0)
 
 def check_params(args):
     data_path = os.path.join(args.data_dir, args.dataset)
@@ -268,7 +256,7 @@ def main():
         try:
             start_epoch = load_checkpoint(G, args.checkpoint_dir)
             print("G weight loaded")
-            load_checkpoint(D, args.checkpoint_dir)
+            _ = load_checkpoint(D, args.checkpoint_dir)
             print("D weight loaded")
         except Exception as e:
             print('Could not load checkpoint, train from scratch', e)
