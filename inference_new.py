@@ -6,6 +6,7 @@ from modeling.anime_gan_rewrite import ImageGenerator as Generator
 import gc
 import cv2
 import numpy as np
+from pathlib import Path
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -47,14 +48,16 @@ def generate_anime_images(checkpoint_path, source_file_path, dest_file_path):
     h, w = image.shape[:2]
     resized_width = w - (w % 32)
     resized_height = h - (h % 32)
-    cv2.resize(image, (resized_width, resized_height),  interpolation=cv2.INTER_AREA)
+    resized_image = cv2.resize(image, (resized_width, resized_height),  interpolation=cv2.INTER_AREA)
     with torch.no_grad():
-        anime_img = G(preprocess_images(image))
+        anime_img = G(preprocess_images(resized_image))
         anime_img = anime_img.detach().cpu().numpy()
         anime_img = anime_img.transpose(0, 2, 3, 1)[0]
     # denormalizing image
     anime_img = anime_img * 127.5 + 127.5
     anime_img = anime_img.astype(np.int16)
+    parent_dir = str(Path(dest_file_path).parent)
+    os.makedirs(parent_dir, exist_ok=True)
     cv2.imwrite(dest_file_path, anime_img[..., ::-1])
 
 def validate_file_paths(checkpoint_path, source_file_path, dest_file_path):
