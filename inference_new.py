@@ -6,7 +6,6 @@ import gc
 import cv2
 import numpy as np
 
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--source_file_path', type=str, help='source file path', required=True)
@@ -26,6 +25,12 @@ def preprocess_images(images):
     images = images.permute(0, 3, 1, 2) # change to channel first for torch convention
     return images
 
+def resize_image(image, inter=cv2.INTER_AREA):
+    h, w = image.shape[:2]
+    resized_width = w - (w % 32)
+    resized_height = h - (h % 32)
+    cv2.resize(image, (resized_width, resized_height),  interpolation=inter)
+
 def generate_anime_images(checkpoint_path, source_file_path, dest_file_path):
     G = Generator()
     if torch.cuda.is_available():
@@ -38,21 +43,38 @@ def generate_anime_images(checkpoint_path, source_file_path, dest_file_path):
     gc.collect()
     G.eval()
     image = cv2.imread(source_file_path)[: ,: ,::-1]
+    h, w = image.shape[:2]
+    resized_width = w - (w % 32)
+    resized_height = h - (h % 32)
+    cv2.resize(image, (resized_width, resized_height),  interpolation=cv2.INTER_AREA)
     with torch.no_grad():
         anime_img = G(preprocess_images(image))
         anime_img = anime_img.detach().cpu().numpy()
-        anime_img = anime_img.transpose(0, 2, 3, 1)
+        anime_img = anime_img.transpose(0, 2, 3, 1)[0]
     # denormalizing image
     anime_img = anime_img * 127.5 + 127.5
     anime_img = anime_img.astype(np.int16)
     cv2.imwrite(dest_file_path, anime_img[..., ::-1])
 
-def main(args):
-    if os.path.exists(args.src_file_path) and os.path.isfile(args.src_file_path):
+def validate_file_paths(checkpoint_path, source_file_path, dest_file_path):
+    if not os.path.exists(checkpoint_path):
+        return False
+    if not os.path.isfile(checkpoint_path):
+        return False
+    if not os.path.exists(source_file_path):
+        return False
+    if not os.path.isfile(source_file_path):
+        return False
+    return True
+
+
+def main():
+    args = parse_args()
+    validated = validate_file_paths(args.checkpoint_path, args.source_file_path, args.destination_file_path)
+    if validated:
         generate_anime_images(checkpoint_path=args.checkpoint_path, source_file_path=args.source_file_path, dest_file_path=args.destination_file_path)
     else:
         print("Not a valid file path")
 
 if __name__ == '__main__':
-    args = parse_args()
-    main(args)
+    main()

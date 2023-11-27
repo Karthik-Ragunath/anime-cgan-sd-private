@@ -56,6 +56,19 @@
                 "--src", "example/10.jpg",
                 "--dest", "save_imgs/inference_images/10_anime.jpg",
             ]
+        },
+        {
+            "name": "animegan_minimal_inference",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/inference_new.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--checkpoint_path", "checkpoints/generator_Hayao.pth",
+                "--source_file_path", "example/result/136.jpeg",
+                "--destination_file_path", "save_imgs/inference_images/136_anime.jpg",
+            ]
         }
     ]
 }
