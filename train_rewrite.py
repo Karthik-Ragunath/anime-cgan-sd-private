@@ -316,7 +316,7 @@ def main():
             loss_tracker.modify_epoch_generator_loss(adversarial_loss, gram_loss, chromatic_loss, content_loss)
             average_epoch_adversarial_loss, average_epoch_gram_loss, average_epoch_chromatic_loss, average_epoch_content_loss = loss_tracker.compute_average_epoch_generator_loss()
             average_epoch_adversarial_discriminator_loss = loss_tracker.compute_average_epoch_discriminator_loss()
-            progress_bar.set_description(f'loss G: adversarial_gen {average_epoch_adversarial_loss:2f} content {average_epoch_content_loss:2f} gram {average_epoch_gram_loss:2f} chromtic {average_epoch_chromatic_loss:2f} / disc avg loss: {average_epoch_adversarial_discriminator_loss:2f}')
+            progress_bar.set_description(f'G loss: adv_gen {average_epoch_adversarial_loss:2f} content {average_epoch_content_loss:2f} gram {average_epoch_gram_loss:2f} chromtic {average_epoch_chromatic_loss:2f} / disc loss: {average_epoch_adversarial_discriminator_loss:2f}')
 
         # Save the model at specific intervals
         if e % args.save_interval == 0:
