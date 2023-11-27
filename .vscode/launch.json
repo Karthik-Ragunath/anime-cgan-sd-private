@@ -94,9 +94,9 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--checkpoint_path", "checkpoints_new/generator_Hayao.pth",
-                "--source_file_path", "example/10.jpg",
-                "--destination_file_path", "save_imgs_new/inference_images/10_anime.jpg",
+                "--checkpoint_path", "checkpoints_rewrite/generator_Hayao.pth",
+                "--source_file_path", "example/result/140.jpeg",
+                "--destination_file_path", "save_imgs_rewrite/inference_images/140_anime.jpg",
             ]
         }
     ]
