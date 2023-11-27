@@ -9,17 +9,48 @@ from torch.utils.data import DataLoader
 from modeling.anime_gan_rewrite import ImageGenerator as Generator
 from modeling.anime_gan_rewrite import ImageDiscriminator as Discriminator
 from modeling.losses_rewrite import AnimeGANLossCalculator
-from modeling.losses import LossSummary
 from utils.common import load_checkpoint
 from utils.common import save_checkpoint
 from utils.common import set_lr
-from utils.common import initialize_weights
 from utils.image_processing import denormalize_input
 from dataset import AnimeDataSet
 from tqdm import tqdm
 
 gaussian_mean = torch.tensor(0.0)
 gaussian_std = torch.tensor(0.1)
+
+class LossTracker:
+    def __init__(self):
+        self.reset_epoch_tracking()
+
+    def reset_epoch_tracking(self):
+        self.chromatic_loss = []
+        self.generator_adversarial_loss = []
+        self.content_loss = []
+        self.gramian_loss = []
+        self.adversarial_discriminator_loss = []
+
+    def modify_epoch_generator_loss(self, adv, gram, color, content):
+        self.generator_adversarial_loss.append(adv.cpu().detach().numpy())
+        self.gramian_loss.append(gram.cpu().detach().numpy())
+        self.chromatic_loss.append(color.cpu().detach().numpy())
+        self.content_loss.append(content.cpu().detach().numpy())
+
+    def modify_epoch_discriminator_loss(self, loss):
+        self.adversarial_discriminator_loss.append(loss.cpu().detach().numpy())
+
+    def compute_average_epoch_generator_loss(self):
+        generator_adversarial_epoch_loss_avg = self.compute_average(self.generator_adversarial_loss)
+        gramian_epoch_loss_avg = self.compute_average(self.gramian_loss)
+        chromatic_epoch_loss_avg = self.compute_average(self.chromatic_loss)
+        content__epoch_loss_avg = self.compute_average(self.content_loss)
+        return generator_adversarial_epoch_loss_avg, gramian_epoch_loss_avg, chromatic_epoch_loss_avg, content__epoch_loss_avg
+
+    def compute_average_epoch_discriminator_loss(self):
+        return self.compute_average(self.adversarial_discriminator_loss)
+
+    def compute_average(self, losses):
+        return sum(losses) / len(losses)
 
 
 def parse_args():
@@ -115,7 +146,7 @@ def main(args):
     G = Generator(args.dataset).cuda()
     D = Discriminator(args).cuda()
 
-    loss_tracker = LossSummary()
+    loss_tracker = LossTracker()
 
     anime_gan_loss_obj = AnimeGANLossCalculator(args)
 
@@ -178,7 +209,7 @@ def main(args):
             save_samples(G, data_loader, args, subname='initg')
             continue
 
-        loss_tracker.reset()
+        loss_tracker.reset_epoch_tracking()
         for img, anime, anime_gray, anime_smt_gray in bar:
             # To cuda
             img = img.cuda()
@@ -208,7 +239,7 @@ def main(args):
             loss_d.backward()
             optimizer_d.step()
 
-            loss_tracker.update_loss_D(loss_d)
+            loss_tracker.modify_epoch_discriminator_loss(loss_d)
 
             # ---------------- TRAIN G ---------------- #
             optimizer_g.zero_grad()
@@ -224,10 +255,10 @@ def main(args):
             loss_g.backward()
             optimizer_g.step()
 
-            loss_tracker.update_loss_G(adv_loss, gra_loss, col_loss, con_loss)
+            loss_tracker.modify_epoch_generator_loss(adv_loss, gra_loss, col_loss, con_loss)
 
-            avg_adv, avg_gram, avg_color, avg_content = loss_tracker.avg_loss_G()
-            avg_adv_d = loss_tracker.avg_loss_D()
+            avg_adv, avg_gram, avg_color, avg_content = loss_tracker.compute_average_epoch_generator_loss()
+            avg_adv_d = loss_tracker.compute_average_epoch_discriminator_loss()
             bar.set_description(f'loss G: adv {avg_adv:2f} con {avg_content:2f} gram {avg_gram:2f} color {avg_color:2f} / loss D: {avg_adv_d:2f}')
 
         if e % args.save_interval == 0:
