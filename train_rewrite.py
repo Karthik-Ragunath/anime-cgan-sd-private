@@ -197,15 +197,12 @@ def check_params(args):
         raise FileNotFoundError(f'Dataset not found {data_path}')
 
     if not os.path.exists(args.save_image_dir):
-        print(f'* {args.save_image_dir} does not exist, creating...')
+        print(f'creating {args.save_image_dir}, since it did not exist previously')
         os.makedirs(args.save_image_dir)
 
     if not os.path.exists(args.checkpoint_dir):
-        print(f'* {args.checkpoint_dir} does not exist, creating...')
+        print(f'creating {args.save_image_dir}, since it did not exist previously')
         os.makedirs(args.checkpoint_dir)
-
-    assert args.gan_loss in {'lsgan', 'hinge', 'bce'}, f'{args.gan_loss} is not supported'
-
 
 def save_samples(generator, loader, args, max_imgs=2, subname='gen'):
     '''
