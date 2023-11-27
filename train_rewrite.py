@@ -85,7 +85,7 @@ class AnimeGANLossCalculator:
             self.args.adversarial_loss_gen_weight * torch.mean(torch.square(fake_logit - 1.0)),
             self.args.content_loss_weight * self.content_loss(img_feat, fake_feat),
             self.args.gram_loss_weight * self.gramian_loss(gram_matrix_compute(anime_feat), gram_matrix_compute(fake_feat)),
-            self.args.wcol * self.chromatic_loss(img, fake_img),
+            self.args.chromatic_loss_weight * self.chromatic_loss(img, fake_img),
         ]
 
     def compute_discriminator_loss(self, fake_img_d, real_anime_d, real_anime_gray_d, real_anime_smooth_gray_d):
@@ -168,7 +168,7 @@ def parse_args():
     parser.add_argument('--adversarial_loss_disc_weight', type=float, default=10.0, help='Adversarial loss weight for D')
     parser.add_argument('--content_loss_weight', type=float, default=1.5, help='Content loss weight')
     parser.add_argument('--gram_loss_weight', type=float, default=3.0, help='Gram loss weight')
-    parser.add_argument('--wcol', type=float, default=30.0, help='Color loss weight')
+    parser.add_argument('--chromatic_loss_weight', type=float, default=30.0, help='Color loss weight')
     parser.add_argument('--d-layers', type=int, default=3, help='Discriminator conv layers')
 
     return parser.parse_args()

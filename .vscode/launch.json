@@ -24,11 +24,11 @@
                 "--init-lr", "0.0001",
                 "--lr-g", "0.00002",
                 "--lr-d", "0.00004",
-                "--adversarial_loss_disc_weight", "10.0",            
-                "--adversarial_loss_gen_weight", "10.0",              
-                "--content_loss_weight", "1.5",              
-                "--gram_loss_weight", "3.0",                
-                "--wcol", "30.0",                
+                "--wadvd", "10.0",            
+                "--wadvg", "10.0",              
+                "--wcon", "1.5",              
+                "--wgra", "3.0",                
+                "--wcol", "30.0",                 
                 "--resume", "GD",               
                 "--use_sn"
             ]
@@ -55,7 +55,7 @@
                 "--adversarial_loss_gen_weight", "10.0",              
                 "--content_loss_weight", "1.5",              
                 "--gram_loss_weight", "3.0",                
-                "--wcol", "30.0",                
+                "--chromatic_loss_weight", "30.0",                
                 "--resume", "GD",               
                 "--use_sn"
             ]
