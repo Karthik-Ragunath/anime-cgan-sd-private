@@ -1,7 +1,7 @@
 import os
 import argparse
 import torch
-from modeling.anime_gan import Generator
+from modeling.anime_gan_minimal import Generator
 import gc
 import cv2
 import numpy as np
