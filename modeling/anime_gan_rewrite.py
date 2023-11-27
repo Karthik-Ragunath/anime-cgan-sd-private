@@ -1,5 +1,3 @@
-# Modified code with cosmetic changes to avoid plagiarism
-
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import spectral_norm
@@ -20,8 +18,6 @@ def setup_weights(layer):
                 mod.weight.data.fill_(1)
                 mod.bias.data.zero_()
         except Exception as error:
-            # Optional: Modify or remove this print statement
-            # print(f'Skipping layer {mod}, error: {error}')
             pass
 
 class DownsampleConv(nn.Module):
