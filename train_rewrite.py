@@ -82,14 +82,14 @@ class AnimeGANLossCalculator:
         anime_feat = self.vgg19_model(anime_gray)
         img_feat = self.vgg19_model(img).detach()
         return [
-            self.args.wadvg * torch.mean(torch.square(fake_logit - 1.0)),
-            self.args.wcon * self.content_loss(img_feat, fake_feat),
-            self.args.wgra * self.gramian_loss(gram_matrix_compute(anime_feat), gram_matrix_compute(fake_feat)),
+            self.args.adversarial_loss_gen_weight * torch.mean(torch.square(fake_logit - 1.0)),
+            self.args.content_loss_weight * self.content_loss(img_feat, fake_feat),
+            self.args.gram_loss_weight * self.gramian_loss(gram_matrix_compute(anime_feat), gram_matrix_compute(fake_feat)),
             self.args.wcol * self.chromatic_loss(img, fake_img),
         ]
 
     def compute_discriminator_loss(self, fake_img_d, real_anime_d, real_anime_gray_d, real_anime_smooth_gray_d):
-        return self.args.wadvd * (
+        return self.args.adversarial_loss_disc_weight * (
             torch.mean(torch.square(real_anime_d - 1.0)) +
             torch.mean(torch.square(fake_img_d)) +
             torch.mean(torch.square(real_anime_gray_d)) +
@@ -164,13 +164,12 @@ def parse_args():
     parser.add_argument('--lr-g', type=float, default=2e-4)
     parser.add_argument('--lr-d', type=float, default=4e-4)
     parser.add_argument('--init-lr', type=float, default=1e-3)
-    parser.add_argument('--wadvg', type=float, default=10.0, help='Adversarial loss weight for G')
-    parser.add_argument('--wadvd', type=float, default=10.0, help='Adversarial loss weight for D')
-    parser.add_argument('--wcon', type=float, default=1.5, help='Content loss weight')
-    parser.add_argument('--wgra', type=float, default=3.0, help='Gram loss weight')
+    parser.add_argument('--adversarial_loss_gen_weight', type=float, default=10.0, help='Adversarial loss weight for G')
+    parser.add_argument('--adversarial_loss_disc_weight', type=float, default=10.0, help='Adversarial loss weight for D')
+    parser.add_argument('--content_loss_weight', type=float, default=1.5, help='Content loss weight')
+    parser.add_argument('--gram_loss_weight', type=float, default=3.0, help='Gram loss weight')
     parser.add_argument('--wcol', type=float, default=30.0, help='Color loss weight')
     parser.add_argument('--d-layers', type=int, default=3, help='Discriminator conv layers')
-    parser.add_argument('--d-noise', action='store_true')
 
     return parser.parse_args()
 
@@ -226,11 +225,6 @@ def save_samples(generator, loader, args, max_imgs=2, subname='gen'):
     for i, img in enumerate(fake_imgs):
         save_path = os.path.join(args.save_image_dir, f'{subname}_{i}.jpg')
         cv2.imwrite(save_path, img[..., ::-1])
-
-
-def gaussian_noise():
-    return torch.normal(gaussian_mean, gaussian_std)
-
 
 def main(args):
     check_params(args)
@@ -314,13 +308,6 @@ def main(args):
             # ---------------- TRAIN D ---------------- #
             optimizer_d.zero_grad()
             fake_img = G(img).detach()
-
-            # Add some Gaussian noise to images before feeding to D
-            if args.d_noise:
-                fake_img += gaussian_noise()
-                anime += gaussian_noise()
-                anime_gray += gaussian_noise()
-                anime_smt_gray += gaussian_noise()
 
             fake_d = D(fake_img)
             real_anime_d = D(anime)
