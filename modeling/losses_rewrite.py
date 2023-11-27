@@ -47,6 +47,11 @@ class AnimeGANLossCalculator:
         self.content_loss = nn.L1Loss().cuda()
         self.vgg19_model = Vgg19().cuda().eval()
 
+    def calculate_vgg_content_loss(self, real_image, fake_image):
+        real_image_features = self.vgg19_model(real_image)
+        fake_image_features = self.vgg19_model(fake_image)
+        return self.content_loss(real_image_features, fake_image_features)
+
     def compute_generator_loss(self, fake_img, img, fake_logit, anime_gray):
         fake_feat = self.vgg19_model(fake_img)
         anime_feat = self.vgg19_model(anime_gray)
@@ -59,32 +64,12 @@ class AnimeGANLossCalculator:
         ]
 
     def compute_discriminator_loss(self, fake_img_d, real_anime_d, real_anime_gray_d, real_anime_smooth_gray_d):
-        # return self.args.wadvd * (
-        #     self.calculate_adversarial_discriminator_loss_real_image(real_anime_d) +
-        #     self.calculate_adversarial_discriminator_loss_fake_image(fake_img_d) +
-        #     self.calculate_adversarial_discriminator_loss_fake_image(real_anime_gray_d) +
-        #     0.2 * self.calculate_adversarial_discriminator_loss_fake_image(real_anime_smooth_gray_d)
-        # )
         return self.args.wadvd * (
             torch.mean(torch.square(real_anime_d - 1.0)) +
             torch.mean(torch.square(fake_img_d)) +
             torch.mean(torch.square(real_anime_gray_d)) +
             0.2 * torch.mean(torch.square(real_anime_smooth_gray_d))
         )
-
-    def calculate_vgg_content_loss(self, image, recontruction):
-        feat = self.vgg19_model(image)
-        re_feat = self.vgg19_model(recontruction)
-        return self.content_loss(feat, re_feat)
-
-    # def calculate_adversarial_discriminator_loss_real_image(self, pred):
-    #     return torch.mean(torch.square(pred - 1.0))
-
-    # def calculate_adversarial_discriminator_loss_fake_image(self, pred):
-    #     return torch.mean(torch.square(pred))
-
-    # def adversarial_generator_loss(self, pred):
-    #     return torch.mean(torch.square(pred - 1.0))
 
 
 class LossSummary:
