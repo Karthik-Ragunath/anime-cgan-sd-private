@@ -152,7 +152,7 @@ class ImageDiscriminator(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(initial_channels, 1, kernel_size=3, stride=1, padding=1, bias=use_bias),
         ]
-        if config.use_sn:
+        if config.use_spectral_norm:
             for i, layer in enumerate(conv_layers):
                 if isinstance(layer, nn.Conv2d):
                     conv_layers[i] = spectral_norm(layer)

@@ -165,37 +165,33 @@ def save_checkpoint(model, optimizer, epoch, args, posfix=''):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='Hayao')
-    parser.add_argument('--data-dir', type=str, default='dataset')
-    parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--init-epochs', type=int, default=5)
-    parser.add_argument('--batch-size', type=int, default=6)
-    parser.add_argument('--checkpoint-dir', type=str, default='checkpoints')
-    parser.add_argument('--save-image-dir', type=str, default='images')
-    parser.add_argument('--gan-loss', type=str, default='lsgan', help='lsgan / hinge / bce')
-    parser.add_argument('--resume', type=str, default='False')
-    parser.add_argument('--use_sn', action='store_true')
-    parser.add_argument('--save-interval', type=int, default=1)
-    parser.add_argument('--debug-samples', type=int, default=0)
-    parser.add_argument('--lr-g', type=float, default=2e-4)
-    parser.add_argument('--lr-d', type=float, default=4e-4)
-    parser.add_argument('--init-lr', type=float, default=1e-3)
-    parser.add_argument('--adversarial_loss_gen_weight', type=float, default=10.0, help='Adversarial loss weight for G')
-    parser.add_argument('--adversarial_loss_disc_weight', type=float, default=10.0, help='Adversarial loss weight for D')
-    parser.add_argument('--content_loss_weight', type=float, default=1.5, help='Content loss weight')
-    parser.add_argument('--gram_loss_weight', type=float, default=3.0, help='Gram loss weight')
-    parser.add_argument('--chromatic_loss_weight', type=float, default=30.0, help='Color loss weight')
-    parser.add_argument('--d-layers', type=int, default=3, help='Discriminator conv layers')
-
+    parser.add_argument('--use_spectral_norm', action="store_true", help="specify if spectral norm is to be used")
+    parser.add_argument('--batch-size', type=int, default=6, help="specify batch size")
+    parser.add_argument('--lr-generator', type=float, default=2e-4, help="specify generator's learning rate")
+    parser.add_argument('--checkpoint-dir', type=str, default='checkpoints', help="specify checkpoints dir")
+    parser.add_argument('--dataset', type=str, default='Hayao', help="specify dataset to use")
+    parser.add_argument('--resume_cond', type=str, default='False', help="specify resume conditions")
+    parser.add_argument('--data-directory', type=str, default='dataset', help="specify data directory")
+    parser.add_argument('--lr-discriminator', type=float, default=4e-4, help="specify discriminator's learning rate")
+    parser.add_argument('--initial-epochs', type=int, default=5, help="specify initial number of epochs")
+    parser.add_argument('--save-image-dir', type=str, default='images', help="specify save image directory")
+    parser.add_argument('--total_epochs', type=int, default=100, help="specify total number of epochs")
+    parser.add_argument('--d-layers', type=int, default=3, help="specify discriminator's conv layers")
+    parser.add_argument('--save-interval', type=int, default=1, help="specify epoch interval to save model")
+    parser.add_argument('--adversarial_loss_gen_weight', type=float, default=10.0, help='specify adversarial loss weight for G')
+    parser.add_argument('--adversarial_loss_disc_weight', type=float, default=10.0, help='specify adversarial loss weight for D')
+    parser.add_argument('--content_loss_weight', type=float, default=1.5, help='specify content loss weight')
+    parser.add_argument('--gram_loss_weight', type=float, default=3.0, help='specify gram loss weight')
+    parser.add_argument('--chromatic_loss_weight', type=float, default=30.0, help='specify color loss weight')
+    parser.add_argument('--initial-lr', type=float, default=1e-3, help="specify initial learning rate")
     return parser.parse_args()
-
 
 def collate_fn(batch):
     real_image, anime_image, anime_grayscale_image, anime_smoothened_grayscale_image = zip(*batch)
     return torch.stack(real_image, 0), torch.stack(anime_image, 0), torch.stack(anime_grayscale_image, 0), torch.stack(anime_smoothened_grayscale_image, 0)
 
 def check_params(args):
-    data_path = os.path.join(args.data_dir, args.dataset)
+    data_path = os.path.join(args.data_directory, args.dataset)
     if not os.path.exists(data_path):
         raise FileNotFoundError(f'Dataset not found {data_path}')
 
@@ -248,11 +244,11 @@ def main():
         shuffle=True,
         collate_fn=collate_fn,
     )
-    optimizer_generator = optim.Adam(G.parameters(), lr=args.lr_g, betas=(0.5, 0.999))
-    optimizer_discriminator = optim.Adam(D.parameters(), lr=args.lr_d, betas=(0.5, 0.999))
+    optimizer_generator = optim.Adam(G.parameters(), lr=args.lr_generator, betas=(0.5, 0.999))
+    optimizer_discriminator = optim.Adam(D.parameters(), lr=args.lr_discriminator, betas=(0.5, 0.999))
 
     start_epoch = 0
-    if args.resume == 'GD':
+    if args.resume_cond == 'gen_dis':
         try:
             start_epoch = load_checkpoint(G, args.checkpoint_dir)
             print("G weight loaded")
@@ -260,19 +256,19 @@ def main():
             print("D weight loaded")
         except Exception as e:
             print('Could not load checkpoint, train from scratch', e)
-    elif args.resume == 'G':
+    elif args.resume_cond == 'gen':
         try:
             start_epoch = load_checkpoint(G, args.checkpoint_dir, posfix='_init')
         except Exception as e:
             print('Could not load G init checkpoint, train from scratch', e)
 
-    for e in range(start_epoch, args.epochs):
-        print(f"Epoch {e}/{args.epochs}")
+    for e in range(start_epoch, args.total_epochs):
+        print(f"Epoch {e}/{args.total_epochs}")
         progress_bar = tqdm(data_loader)
         G.train()
         init_losses = []
-        if e < args.init_epochs:
-            set_lr(optimizer_generator, args.init_lr)
+        if e < args.initial_epochs:
+            set_lr(optimizer_generator, args.initial_lr)
             for real_image, *_ in progress_bar:
                 real_image = real_image.cuda()
                 optimizer_generator.zero_grad()
@@ -284,7 +280,7 @@ def main():
                 avg_content_loss = sum(init_losses) / len(init_losses)
                 progress_bar.set_description(f'[Init Training G] content loss: {avg_content_loss:2f}')
             # Save under init epoch condition
-            set_lr(optimizer_generator, args.lr_g)
+            set_lr(optimizer_generator, args.lr_generator)
             save_checkpoint(G, optimizer_generator, e, args, posfix='_init')
             save_samples(G, data_loader, args, subname='initg')
             continue
