@@ -23,15 +23,10 @@ wget -O anime-gan.zip https://github.com/ptran1203/pytorch-animeGAN/releases/dow
 unzip anime-gan.zip -d /content
 ```
 
-### 2.2 DOWNLOAD STABLE DIFFUSION CHECKPOINTS
-```
-bash scripts/download_checkpoints.sh
-```
-
 -----------------------
-## 2. VSCODE DEBUGGER CONFIGS TO RUN TRAIN AND INFERENCE SCRIPTS
+## 3. VSCODE DEBUGGER CONFIGS TO RUN TRAIN AND INFERENCE SCRIPTS
 
-### 2.1 Train CGAN for converting images into anime style
+### 3.1 Train CGAN for converting images into anime style
 
 ```
 {
@@ -42,23 +37,22 @@ bash scripts/download_checkpoints.sh
     "console": "integratedTerminal",
     "justMyCode": true,
     "args": [
+        "--resume_cond", "gen_dis",
         "--dataset", "Hayao",
-        "--batch", "6",
-        "--init-epochs", "4",
-        "--checkpoint-dir", "checkpoints",
-        "--save-image-dir", "save_imgs",
+        "--use_spectral_norm",
+        "--lr-discriminator", "0.00004",
+        "--batch-size", "6",
+        "--initial-epochs", "1",
+        "--initial-lr", "0.0001",
         "--save-interval", "1",
-        "--gan-loss", "lsgan",
-        "--init-lr", "0.0001",
-        "--lr-g", "0.00002",
-        "--lr-d", "0.00004",
-        "--wadvd", "10.0",            
-        "--wadvg", "10.0",              
-        "--wcon", "1.5",              
-        "--wgra", "3.0",                
-        "--wcol", "30.0",                
-        "--resume", "GD",               
-        "--use_sn"
+        "--lr-generator", "0.00002",
+        "--checkpoint-dir", "checkpoints",
+        "--adversarial_loss_disc_weight", "10.0",
+        "--save-image-dir", "save_imgs",          
+        "--adversarial_loss_gen_weight", "10.0",              
+        "--content_loss_weight", "1.5",              
+        "--gram_loss_weight", "3.0",                
+        "--chromatic_loss_weight", "30.0",                
     ]
 }
 ```
@@ -66,16 +60,16 @@ bash scripts/download_checkpoints.sh
 ### 2.2 Inference With CGAN
 ```
 {
-    "name": "animegan_inference",
+    "name": "inference",
     "type": "python",
     "request": "launch",
-    "program": "${workspaceFolder}/inference_image.py",
+    "program": "${workspaceFolder}/inference.py",
     "console": "integratedTerminal",
     "justMyCode": true,
     "args": [
-        "--checkpoint", "checkpoints/generator_Hayao.pth",
-        "--src", "example/10.jpg",
-        "--dest", "save_imgs/inference_images/10_anime.jpg",
+        "--checkpoint_path", "checkpoints/generator_Hayao.pth",
+        "--source_file_path", "example/result/140.jpeg",
+        "--destination_file_path", "save_imgs/inference_images/140_anime.jpg",
     ]
 }
 ```
@@ -83,16 +77,16 @@ bash scripts/download_checkpoints.sh
 ### 2.3 Edit Anime Styled Image With Stable-Diffusion
 ```
 {
-    "name": "edit_cli",
+    "name": "stable_diffusion_edits",
     "type": "python",
     "request": "launch",
-    "program": "${workspaceFolder}/edit_cli.py",
+    "program": "${workspaceFolder}/stable_diffusion_inference.py",
     "console": "integratedTerminal",
     "justMyCode": true,
     "args": [
-        "--input", "save_imgs/inference_images/10_anime.jpg",
-        "--output", "save_imgs/inference_images/10_anime_stable_diffused.jpg",
-        "--edit", "turn green chairs into blue"
+        "--source_file_path", "save_imgs/inference_images/140_anime.jpg",
+        "--destination_file_path", "save_imgs/inference_images/140_anime_stable_diffused.jpg",
+        "--edit_condition", "change the color of the bus to black"
     ]
 }
 ```
