@@ -8,9 +8,13 @@ pip install pandas
 pip install cog
 pip install moviepy
 
+pip install transformers
+pip install diffusers
+pip install git+https://github.com/huggingface/diffusers.git
+
 pip install albumentations==0.4.3
 pip install datasets==2.8.0
-pip install diffusers
+# pip install diffusers
 # pip install opencv-python==4.1.2.30
 pip install pudb==2019.2
 pip install invisible-watermark
