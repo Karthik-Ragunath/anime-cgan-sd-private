@@ -5,35 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "train",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/train.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--dataset", "Hayao",
-                "--batch", "6",
-                "--init-epochs", "4",
-                // "--checkpoint-dir", "checkpoints",
-                // "--save-image-dir", "save_imgs",
-                "--checkpoint-dir", "checkpoints_new",
-                "--save-image-dir", "save_imgs_new",
-                "--save-interval", "1",
-                "--gan-loss", "lsgan",
-                "--init-lr", "0.0001",
-                "--lr-g", "0.00002",
-                "--lr-d", "0.00004",
-                "--wadvd", "10.0",            
-                "--wadvg", "10.0",              
-                "--wcon", "1.5",              
-                "--wgra", "3.0",                
-                "--wcol", "30.0",                 
-                "--resume", "GD",               
-                "--use_sn"
-            ]
-        },
-        {
             "name": "train_rewrite",
             "type": "python",
             "request": "launch",
@@ -61,32 +32,6 @@
             ]
         },
         {
-            "name": "edit_cli",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/edit_cli.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--input", "save_imgs/inference_images/10_anime.jpg",
-                "--output", "save_imgs/inference_images/10_anime_stable_diffused.jpg",
-                "--edit", "turn green chairs into blue"
-            ]
-        },
-        {
-            "name": "animegan_inference",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/inference_image.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--checkpoint", "checkpoints/generator_Hayao.pth",
-                "--src", "example/result/140.jpeg",
-                "--dest", "save_imgs/inference_images/140_anime.jpg",
-            ]
-        },
-        {
             "name": "animegan_minimal_inference",
             "type": "python",
             "request": "launch",
@@ -97,6 +42,18 @@
                 "--checkpoint_path", "checkpoints_rewrite/generator_Hayao.pth",
                 "--source_file_path", "example/result/140.jpeg",
                 "--destination_file_path", "save_imgs_rewrite/inference_images/140_anime.jpg",
+            ]
+        },
+        {
+            "name": "stable_diffusion_edits",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/stable_diffusion_inference.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--source_file_path", "save_imgs_rewrite/inference_images/10_anime.jpg",
+                "--destination_file_path", "save_imgs_rewrite/inference_images/10_anime_stable_diffused.jpg",
             ]
         }
     ]
