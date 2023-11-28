@@ -1,7 +1,6 @@
 import os
 import argparse
 import torch
-# from modeling.anime_gan_minimal import Generator
 from modeling.anime_gan_rewrite import ImageGenerator as Generator
 import gc
 import cv2
