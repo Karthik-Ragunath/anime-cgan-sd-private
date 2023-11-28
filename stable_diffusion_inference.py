@@ -7,6 +7,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source_file_path", required=True, help="provide file path where source image is present")
     parser.add_argument("--destination_file_path", required=True, help="provide file path where destination image is present")
+    parser.add_argument("--edit_condition", required=True, help="edit condition to applied to the source image")
     args = parser.parse_args()
     return args
 
@@ -18,5 +19,5 @@ if __name__ == "__main__":
     pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(pipeline.scheduler.config)
     args = parse_arguments()
     image = Image.open(args.source_file_path)
-    images = pipeline("turn green chairs into blue", image=image).images
+    images = pipeline(args.edit_condition, image=image).images
     images[0].save(args.destination_file_path)

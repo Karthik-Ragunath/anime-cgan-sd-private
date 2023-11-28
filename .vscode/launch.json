@@ -8,7 +8,7 @@
             "name": "train_rewrite",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/train_rewrite.py",
+            "program": "${workspaceFolder}/train.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
@@ -34,7 +34,7 @@
             "name": "animegan_minimal_inference",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/inference_new.py",
+            "program": "${workspaceFolder}/inference.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
@@ -51,8 +51,9 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--source_file_path", "save_imgs_rewrite/inference_images/10_anime.jpg",
-                "--destination_file_path", "save_imgs_rewrite/inference_images/10_anime_stable_diffused.jpg",
+                "--source_file_path", "save_imgs_rewrite/inference_images/140_anime.jpg",
+                "--destination_file_path", "save_imgs_rewrite/inference_images/140_anime_stable_diffused.jpg",
+                "--edit_condition", "change the color of the bus to black"
             ]
         }
     ]

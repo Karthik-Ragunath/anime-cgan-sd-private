@@ -7,8 +7,8 @@ import torch.nn as nn
 import torch.optim as optim
 from multiprocessing import cpu_count
 from torch.utils.data import DataLoader
-from modeling.anime_gan_rewrite import ImageGenerator as Generator
-from modeling.anime_gan_rewrite import ImageDiscriminator as Discriminator
+from model.anime_gan import ImageGenerator as Generator
+from model.anime_gan import ImageDiscriminator as Discriminator
 from dataset import AnimeDataSet
 from tqdm import tqdm
 import gc

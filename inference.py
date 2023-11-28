@@ -1,7 +1,7 @@
 import os
 import argparse
 import torch
-from modeling.anime_gan_rewrite import ImageGenerator as Generator
+from model.anime_gan import ImageGenerator as Generator
 import gc
 import cv2
 import numpy as np
