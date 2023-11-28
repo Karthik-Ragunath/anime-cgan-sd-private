@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "train_rewrite",
+            "name": "train",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/train.py",
@@ -21,9 +21,9 @@
                 "--initial-lr", "0.0001",
                 "--save-interval", "1",
                 "--lr-generator", "0.00002",
-                "--checkpoint-dir", "checkpoints_minimal",
+                "--checkpoint-dir", "checkpoints",
                 "--adversarial_loss_disc_weight", "10.0",
-                "--save-image-dir", "save_imgs_minimal",          
+                "--save-image-dir", "save_imgs",          
                 "--adversarial_loss_gen_weight", "10.0",              
                 "--content_loss_weight", "1.5",              
                 "--gram_loss_weight", "3.0",                
@@ -31,16 +31,16 @@
             ]
         },
         {
-            "name": "animegan_minimal_inference",
+            "name": "inference",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/inference.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--checkpoint_path", "checkpoints_rewrite/generator_Hayao.pth",
+                "--checkpoint_path", "checkpoints/generator_Hayao.pth",
                 "--source_file_path", "example/result/140.jpeg",
-                "--destination_file_path", "save_imgs_rewrite/inference_images/140_anime.jpg",
+                "--destination_file_path", "save_imgs/inference_images/140_anime.jpg",
             ]
         },
         {
@@ -51,8 +51,8 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--source_file_path", "save_imgs_rewrite/inference_images/140_anime.jpg",
-                "--destination_file_path", "save_imgs_rewrite/inference_images/140_anime_stable_diffused.jpg",
+                "--source_file_path", "save_imgs/inference_images/140_anime.jpg",
+                "--destination_file_path", "save_imgs/inference_images/140_anime_stable_diffused.jpg",
                 "--edit_condition", "change the color of the bus to black"
             ]
         }
