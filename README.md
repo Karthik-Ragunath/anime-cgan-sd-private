@@ -20,7 +20,7 @@ Inference code to use Stable-Diffusion model to edit the anime_style image gener
 
 ```bash
 wget -O anime-gan.zip https://github.com/ptran1203/pytorch-animeGAN/releases/download/v1.0/dataset_v1.zip
-unzip anime-gan.zip -d /content
+unzip anime-gan.zip
 ```
 
 -----------------------
