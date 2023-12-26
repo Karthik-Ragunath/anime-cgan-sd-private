@@ -618,8 +618,8 @@ def main():
     def tokenize_captions(captions):
         inputs = tokenizer(
             captions, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt" # tokenizer.model_max_length = 77 # captions = ['']
-        )
-        return inputs.input_ids # inputs.keys() = dict_keys(['input_ids', 'attention_mask'])
+        ) # tokenizer.model_max_length = 77
+        return inputs.input_ids # inputs.keys() = dict_keys(['input_ids', 'attention_mask']) # inputs.input_ids.shape = torch.Size([4, 77])
 
     # Preprocessing the datasets.
     train_transforms = transforms.Compose(
@@ -631,35 +631,35 @@ def main():
 
     def preprocess_images(examples):
         original_images = np.concatenate(
-            [convert_to_np(image, args.resolution) for image in examples[original_image_column]]
-        )
+            [convert_to_np(image, args.resolution) for image in examples[original_image_column]] # original_image_column = 'input_image' # examples.keys() = dict_keys(['input_image', 'edit_prompt', 'edited_image']) # args.resolution = 256 # examples['input_image'][0].size = (512, 512)
+        ) # original_images.shape = (12, 256, 256)
         edited_images = np.concatenate(
-            [convert_to_np(image, args.resolution) for image in examples[edited_image_column]]
-        )
+            [convert_to_np(image, args.resolution) for image in examples[edited_image_column]] # edited_image_column = 'edited_image' # examples['edited_image'][0].size = (512, 512)
+        ) # edited_images.shape = (12, 256, 256)
         # We need to ensure that the original and the edited images undergo the same
         # augmentation transforms.
-        images = np.concatenate([original_images, edited_images])
-        images = torch.tensor(images)
-        images = 2 * (images / 255) - 1
+        images = np.concatenate([original_images, edited_images]) # (24, 256, 256)
+        images = torch.tensor(images) # torch.Size([24, 256, 256])
+        images = 2 * (images / 255) - 1 # torch.Size([24, 256, 256])
         return train_transforms(images)
 
     def preprocess_train(examples):
         # Preprocess images.
-        preprocessed_images = preprocess_images(examples)
+        preprocessed_images = preprocess_images(examples) # preprocessed_images.shape = torch.Size([24, 256, 256]) # dict_keys(['input_image', 'edit_prompt', 'edited_image'])
         # Since the original and edited images were concatenated before
         # applying the transformations, we need to separate them and reshape
         # them accordingly.
-        original_images, edited_images = preprocessed_images.chunk(2)
-        original_images = original_images.reshape(-1, 3, args.resolution, args.resolution)
-        edited_images = edited_images.reshape(-1, 3, args.resolution, args.resolution)
+        original_images, edited_images = preprocessed_images.chunk(2) # torch.Size([12, 256, 256]) # torch.Size([12, 256, 256])
+        original_images = original_images.reshape(-1, 3, args.resolution, args.resolution) # torch.Size([4, 3, 256, 256])
+        edited_images = edited_images.reshape(-1, 3, args.resolution, args.resolution) # torch.Size([4, 3, 256, 256])
 
         # Collate the preprocessed images into the `examples`.
-        examples["original_pixel_values"] = original_images
+        examples["original_pixel_values"] = original_images # examples.keys() = dict_keys(['input_image', 'edit_prompt', 'edited_image'])
         examples["edited_pixel_values"] = edited_images
 
         # Preprocess the captions.
-        captions = list(examples[edit_prompt_column])
-        examples["input_ids"] = tokenize_captions(captions)
+        captions = list(examples[edit_prompt_column]) # len(captions) = 4 # ['Make the ghost a can...corn ghost', 'have them be on a beach', 'Make it a watercolor', 'the puzzle is made out of wood']
+        examples["input_ids"] = tokenize_captions(captions) # torch.Size([4, 77])
         return examples
 
     with accelerator.main_process_first():
@@ -669,11 +669,11 @@ def main():
         train_dataset = dataset["train"].with_transform(preprocess_train) # len(dataset["train"]) = 1000 # dataset["train"] # Dataset({features: ['input_image', 'edit_prompt', 'edited_image'], num_rows: 1000}) # see down
 
     def collate_fn(examples):
-        original_pixel_values = torch.stack([example["original_pixel_values"] for example in examples])
-        original_pixel_values = original_pixel_values.to(memory_format=torch.contiguous_format).float()
-        edited_pixel_values = torch.stack([example["edited_pixel_values"] for example in examples])
-        edited_pixel_values = edited_pixel_values.to(memory_format=torch.contiguous_format).float()
-        input_ids = torch.stack([example["input_ids"] for example in examples])
+        original_pixel_values = torch.stack([example["original_pixel_values"] for example in examples]) # torch.Size([4, 3, 256, 256]) # len(examples) = 4 # examples[0]["original_pixel_values"].shape = torch.Size([3, 256, 256])
+        original_pixel_values = original_pixel_values.to(memory_format=torch.contiguous_format).float() # torch.Size([4, 3, 256, 256])
+        edited_pixel_values = torch.stack([example["edited_pixel_values"] for example in examples]) # torch.Size([4, 3, 256, 256])
+        edited_pixel_values = edited_pixel_values.to(memory_format=torch.contiguous_format).float() # torch.Size([4, 3, 256, 256])
+        input_ids = torch.stack([example["input_ids"] for example in examples]) # torch.Size([4, 77])
         return {
             "original_pixel_values": original_pixel_values,
             "edited_pixel_values": edited_pixel_values,
@@ -1163,3 +1163,52 @@ if __name__ == "__main__":
 # (512, 512)
 # dataset["train"]['edit_prompt'][0]
 # 'Turn it into a photo'
+
+# inputs
+# {'input_ids': tensor([[49406,  1078,   518,  7108,   320,  6417,  5894,  7108, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407],
+        # [49406,   720,  1180,   655,   525,   320,  2117, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407],
+        # [49406,  1078,   585,   320, 14211, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407],
+        # [49406,   518, 12875,   533,  1105,   620,   539,  1704, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407, 49407,
+        #  49407, 49407, 49407, 49407, 49407, 49407, 49407]]), 'attention_mask': tensor([[1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0],
+        # [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0],
+        # [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0],
+        # [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        #  0, 0, 0, 0, 0]])}
