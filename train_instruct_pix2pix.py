@@ -390,12 +390,12 @@ def main():
             ),
         )
     logging_dir = os.path.join(args.output_dir, args.logging_dir)
-    accelerator_project_config = ProjectConfiguration(project_dir=args.output_dir, logging_dir=logging_dir)
+    accelerator_project_config = ProjectConfiguration(project_dir=args.output_dir, logging_dir=logging_dir) # accelerator_project_config = ProjectConfiguration(project_dir='instruct-pix2pix-model', logging_dir='instruct-pix2pix-model/logs', automatic_checkpoint_naming=False, total_limit=None, iteration=0, save_on_each_node=False)
     accelerator = Accelerator(
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        mixed_precision=args.mixed_precision,
-        log_with=args.report_to,
-        project_config=accelerator_project_config,
+        gradient_accumulation_steps=args.gradient_accumulation_steps, # 4
+        mixed_precision=args.mixed_precision, # 'fp16'
+        log_with=args.report_to, # 'tensorboard'
+        project_config=accelerator_project_config, # ProjectConfiguration(project_dir='instruct-pix2pix-model', logging_dir='instruct-pix2pix-model/logs', automatic_checkpoint_naming=False, total_limit=None, iteration=0, save_on_each_node=False)
     )
 
     generator = torch.Generator(device=accelerator.device).manual_seed(args.seed)
@@ -427,7 +427,7 @@ def main():
 
     # Handle the repository creation
     if accelerator.is_main_process:
-        if args.output_dir is not None:
+        if args.output_dir is not None: # 'instruct-pix2pix-model'
             os.makedirs(args.output_dir, exist_ok=True)
 
         if args.push_to_hub:
@@ -436,19 +436,19 @@ def main():
             ).repo_id
 
     # Load scheduler, tokenizer and models.
-    noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
+    noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler") # <DDPMScheduler, len() = 1000>
     tokenizer = CLIPTokenizer.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision
+        args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision # args.revision = None
     )
     text_encoder = CLIPTextModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision, variant=args.variant
+        args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision, variant=args.variant # args.variant = None
     )
     vae = AutoencoderKL.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision, variant=args.variant
-    )
+    ) # <AutoencoderKL>
     unet = UNet2DConditionModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision
-    )
+        args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision # args.non_ema_revision = None
+    ) # <UNet2DConditionModel>
 
     # InstructPix2Pix uses an additional image for conditioning. To accommodate that,
     # it uses 8 channels (instead of 4) in the first (conv) layer of the UNet. This UNet is
@@ -457,30 +457,30 @@ def main():
     # initialized to zero.
     logger.info("Initializing the InstructPix2Pix UNet from the pretrained UNet.")
     in_channels = 8
-    out_channels = unet.conv_in.out_channels
+    out_channels = unet.conv_in.out_channels # 320
     unet.register_to_config(in_channels=in_channels)
 
     with torch.no_grad():
         new_conv_in = nn.Conv2d(
             in_channels, out_channels, unet.conv_in.kernel_size, unet.conv_in.stride, unet.conv_in.padding
-        )
-        new_conv_in.weight.zero_()
-        new_conv_in.weight[:, :4, :, :].copy_(unet.conv_in.weight)
-        unet.conv_in = new_conv_in
+        ) # in_channels = 8, out_channels = 320, unet.conv_in.kernel_size = (3, 3), unet.conv_in.stride = (1, 1), unet.conv_in.padding = (1, 1)
+        new_conv_in.weight.zero_() # new_conv_in.weight.shape = torch.Size([320, 8, 3, 3])
+        new_conv_in.weight[:, :4, :, :].copy_(unet.conv_in.weight) # new_conv_in.weight[:, :4, :, :].shape = torch.Size([320, 4, 3, 3])
+        unet.conv_in = new_conv_in # new_conv_in = Conv2d(8, 320, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
 
     # Freeze vae and text_encoder
     vae.requires_grad_(False)
     text_encoder.requires_grad_(False)
 
     # Create EMA for the unet.
-    if args.use_ema:
+    if args.use_ema: # False
         ema_unet = EMAModel(unet.parameters(), model_cls=UNet2DConditionModel, model_config=unet.config)
 
-    if args.enable_xformers_memory_efficient_attention:
-        if is_xformers_available():
+    if args.enable_xformers_memory_efficient_attention: # True
+        if is_xformers_available(): # True
             import xformers
 
-            xformers_version = version.parse(xformers.__version__)
+            xformers_version = version.parse(xformers.__version__) # <Version('0.0.23.post1')>
             if xformers_version == version.parse("0.0.16"):
                 logger.warn(
                     "xFormers 0.0.16 cannot be used for training in some GPUs. If you observe problems during training, please update xFormers to at least 0.0.17. See https://huggingface.co/docs/diffusers/main/en/optimization/xformers for more details."
@@ -490,7 +490,7 @@ def main():
             raise ValueError("xformers is not available. Make sure it is installed correctly")
 
     # `accelerate` 0.16.0 will have better support for customized saving
-    if version.parse(accelerate.__version__) >= version.parse("0.16.0"):
+    if version.parse(accelerate.__version__) >= version.parse("0.16.0"): # <Version('0.25.0')>
         # create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format
         def save_model_hook(models, weights, output_dir):
             if accelerator.is_main_process:
@@ -524,7 +524,7 @@ def main():
         accelerator.register_save_state_pre_hook(save_model_hook)
         accelerator.register_load_state_pre_hook(load_model_hook)
 
-    if args.gradient_checkpointing:
+    if args.gradient_checkpointing: # True
         unet.enable_gradient_checkpointing()
 
     # Enable TF32 for faster training on Ampere GPUs,
@@ -538,7 +538,7 @@ def main():
         )
 
     # Initialize the optimizer
-    if args.use_8bit_adam:
+    if args.use_8bit_adam: # False
         try:
             import bitsandbytes as bnb
         except ImportError:
@@ -552,10 +552,10 @@ def main():
 
     optimizer = optimizer_cls(
         unet.parameters(),
-        lr=args.learning_rate,
-        betas=(args.adam_beta1, args.adam_beta2),
-        weight_decay=args.adam_weight_decay,
-        eps=args.adam_epsilon,
+        lr=args.learning_rate, # 5e-05
+        betas=(args.adam_beta1, args.adam_beta2), # (0.9, 0.999)
+        weight_decay=args.adam_weight_decay, # 0.01
+        eps=args.adam_epsilon, # 1e-08
     )
 
     # Get the datasets: you can either provide your own training and evaluation files (see below)
@@ -566,9 +566,9 @@ def main():
     if args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
         dataset = load_dataset(
-            args.dataset_name,
-            args.dataset_config_name,
-            cache_dir=args.cache_dir,
+            args.dataset_name, # 'fusing/instructpix2pix-1000-samples'
+            args.dataset_config_name, # None
+            cache_dir=args.cache_dir, # None
         )
     else:
         data_files = {}
@@ -584,14 +584,14 @@ def main():
 
     # Preprocessing the datasets.
     # We need to tokenize inputs and targets.
-    column_names = dataset["train"].column_names
+    column_names = dataset["train"].column_names # ['input_image', 'edit_prompt', 'edited_image']
 
     # 6. Get the column names for input/target.
-    dataset_columns = DATASET_NAME_MAPPING.get(args.dataset_name, None)
+    dataset_columns = DATASET_NAME_MAPPING.get(args.dataset_name, None) # ('input_image', 'edit_prompt', 'edited_image')
     if args.original_image_column is None:
         original_image_column = dataset_columns[0] if dataset_columns is not None else column_names[0]
     else:
-        original_image_column = args.original_image_column
+        original_image_column = args.original_image_column # 'input_image'
         if original_image_column not in column_names:
             raise ValueError(
                 f"--original_image_column' value '{args.original_image_column}' needs to be one of: {', '.join(column_names)}"
@@ -599,15 +599,15 @@ def main():
     if args.edit_prompt_column is None:
         edit_prompt_column = dataset_columns[1] if dataset_columns is not None else column_names[1]
     else:
-        edit_prompt_column = args.edit_prompt_column
-        if edit_prompt_column not in column_names:
+        edit_prompt_column = args.edit_prompt_column # 'edit_prompt'
+        if edit_prompt_column not in column_names: # column_names = ['input_image', 'edit_prompt', 'edited_image']
             raise ValueError(
                 f"--edit_prompt_column' value '{args.edit_prompt_column}' needs to be one of: {', '.join(column_names)}"
             )
-    if args.edited_image_column is None:
+    if args.edited_image_column is None: # 'edited_image'
         edited_image_column = dataset_columns[2] if dataset_columns is not None else column_names[2]
     else:
-        edited_image_column = args.edited_image_column
+        edited_image_column = args.edited_image_column # 'edited_image'
         if edited_image_column not in column_names:
             raise ValueError(
                 f"--edited_image_column' value '{args.edited_image_column}' needs to be one of: {', '.join(column_names)}"
@@ -624,8 +624,8 @@ def main():
     # Preprocessing the datasets.
     train_transforms = transforms.Compose(
         [
-            transforms.CenterCrop(args.resolution) if args.center_crop else transforms.RandomCrop(args.resolution),
-            transforms.RandomHorizontalFlip() if args.random_flip else transforms.Lambda(lambda x: x),
+            transforms.CenterCrop(args.resolution) if args.center_crop else transforms.RandomCrop(args.resolution), # args.center_crop = False # args.resolution = 256
+            transforms.RandomHorizontalFlip() if args.random_flip else transforms.Lambda(lambda x: x), # args.random_flip = True
         ]
     )
 
@@ -663,10 +663,10 @@ def main():
         return examples
 
     with accelerator.main_process_first():
-        if args.max_train_samples is not None:
+        if args.max_train_samples is not None: # None
             dataset["train"] = dataset["train"].shuffle(seed=args.seed).select(range(args.max_train_samples))
         # Set the training transforms
-        train_dataset = dataset["train"].with_transform(preprocess_train)
+        train_dataset = dataset["train"].with_transform(preprocess_train) # len(dataset["train"]) = 1000 # dataset["train"] # Dataset({features: ['input_image', 'edit_prompt', 'edited_image'], num_rows: 1000}) # see down
 
     def collate_fn(examples):
         original_pixel_values = torch.stack([example["original_pixel_values"] for example in examples])
@@ -682,16 +682,17 @@ def main():
 
     # DataLoaders creation:
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset,
+        train_dataset, # len(train_dataset) = 1000
         shuffle=True,
         collate_fn=collate_fn,
-        batch_size=args.train_batch_size,
-        num_workers=args.dataloader_num_workers,
+        batch_size=args.train_batch_size, # 4
+        num_workers=args.dataloader_num_workers, # 0
     )
 
     # Scheduler and math around the number of training steps.
     overrode_max_train_steps = False
-    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
+
+    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps) # 63 # len(train_dataloader) = 250 # args.gradient_accumulation_steps = 4
     if args.max_train_steps is None:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
         overrode_max_train_steps = True
@@ -1119,3 +1120,46 @@ if __name__ == "__main__":
 # resume_from_checkpoint=None, 
 # enable_xformers_memory_efficient_attention=True
 # )
+
+# tokenizer
+# CLIPTokenizer(name_or_path='runwayml/stable-diffusion-v1-5', vocab_size=49408, model_max_length=77, is_fast=False, padding_side='right', truncation_side='right', special_tokens={'bos_token': '<|startoftext|>', 'eos_token': '<|endoftext|>', 'unk_token': '<|endoftext|>', 'pad_token': '<|endoftext|>'}, clean_up_tokenization_spaces=True),  added_tokens_decoder={
+# 	49406: AddedToken("<|startoftext|>", rstrip=False, lstrip=False, single_word=False, normalized=True, special=True),
+# 	49407: AddedToken("<|endoftext|>", rstrip=False, lstrip=False, single_word=False, normalized=True, special=True),
+# }
+
+# text_encoder
+# CLIPTextModel(
+#   (text_model): CLIPTextTransformer(
+#     (embeddings): CLIPTextEmbeddings(
+#       (token_embedding): Embedding(49408, 768)
+#       (position_embedding): Embedding(77, 768)
+#     )
+#     (encoder): CLIPEncoder(
+#       (layers): ModuleList(
+#         (0-11): 12 x CLIPEncoderLayer(
+#           (self_attn): CLIPAttention(
+#             (k_proj): Linear(in_features=768, out_features=768, bias=True)
+#             (v_proj): Linear(in_features=768, out_features=768, bias=True)
+#             (q_proj): Linear(in_features=768, out_features=768, bias=True)
+#             (out_proj): Linear(in_features=768, out_features=768, bias=True)
+#           )
+#           (layer_norm1): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+#           (mlp): CLIPMLP(
+#             (activation_fn): QuickGELUActivation()
+#             (fc1): Linear(in_features=768, out_features=3072, bias=True)
+#             (fc2): Linear(in_features=3072, out_features=768, bias=True)
+#           )
+#           (layer_norm2): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+#         )
+#       )
+#     )
+#     (final_layer_norm): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+#   )
+# )
+
+# dataset["train"]['input_image'][0].size
+# (512, 512)
+# dataset["train"]['edited_image'][0].size
+# (512, 512)
+# dataset["train"]['edit_prompt'][0]
+# 'Turn it into a photo'
