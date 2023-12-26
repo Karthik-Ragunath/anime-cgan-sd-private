@@ -1,4 +1,4 @@
-conda create -n anime_gan_env python=3.10
+conda create -n sd python=3.10
 
 pip install numpy
 pip install matplotlib
@@ -14,3 +14,7 @@ pip install transformers
 pip install accelerate
 pip install git+https://github.com/huggingface/diffusers.git
 pip install git+https://github.com/huggingface/transformers
+pip install datasets
+pip install ftfy
+pip install tensorboard
+pip install xformers
