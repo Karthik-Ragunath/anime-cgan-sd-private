@@ -697,10 +697,10 @@ def main():
         overrode_max_train_steps = True
 
     lr_scheduler = get_scheduler(
-        args.lr_scheduler,
-        optimizer=optimizer,
-        num_warmup_steps=args.lr_warmup_steps * accelerator.num_processes,
-        num_training_steps=args.max_train_steps * accelerator.num_processes,
+        args.lr_scheduler, # 'constant'
+        optimizer=optimizer, # see at bottom
+        num_warmup_steps=args.lr_warmup_steps * accelerator.num_processes, # args.lr_warmup_steps = 0, accelerator.num_processes = 1
+        num_training_steps=args.max_train_steps * accelerator.num_processes, # args.max_train_steps = 15000 # accelerator.num_processes = 1
     )
 
     # Prepare everything with our `accelerator`.
@@ -714,7 +714,7 @@ def main():
     # For mixed precision training we cast the text_encoder and vae weights to half-precision
     # as these models are only used for inference, keeping weights in full precision is not required.
     weight_dtype = torch.float32
-    if accelerator.mixed_precision == "fp16":
+    if accelerator.mixed_precision == "fp16": # 'fp16'
         weight_dtype = torch.float16
     elif accelerator.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
@@ -777,10 +777,10 @@ def main():
     progress_bar = tqdm(range(global_step, args.max_train_steps), disable=not accelerator.is_local_main_process)
     progress_bar.set_description("Steps")
 
-    for epoch in range(first_epoch, args.num_train_epochs):
+    for epoch in range(first_epoch, args.num_train_epochs): # first_epoch = 0 # args.num_train_epochs = 239
         unet.train()
         train_loss = 0.0
-        for step, batch in enumerate(train_dataloader):
+        for step, batch in enumerate(train_dataloader): # len(train_dataloader) = 250
             # Skip steps until we reach the resumed step
             if args.resume_from_checkpoint and epoch == first_epoch and step < resume_step: # args.resume_from_checkpoint = None
                 if step % args.gradient_accumulation_steps == 0:
@@ -1049,3 +1049,73 @@ if __name__ == "__main__":
 #          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 #          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 #          0, 0, 0, 0, 0]])}
+
+# optimizer
+# AcceleratedOptimizer (
+# Parameter Group 0
+#     amsgrad: False
+#     betas: (0.9, 0.999)
+#     capturable: False
+#     differentiable: False
+#     eps: 1e-08
+#     foreach: None
+#     fused: None
+#     initial_lr: 5e-05
+#     lr: 5e-05
+#     maximize: False
+#     weight_decay: 0.01
+# )
+
+# args
+# Namespace(
+# pretrained_model_name_or_path='runwayml/stable-diffusion-v1-5', 
+# revision=None, variant=None, 
+# dataset_name='fusing/instructpix2pix-1000-samples', 
+# dataset_config_name=None, 
+# train_data_dir=None, 
+# original_image_column='input_image', 
+# edited_image_column='edited_image', 
+# edit_prompt_column='edit_prompt', 
+# val_image_url=None, 
+# validation_prompt=None, 
+# num_validation_images=4, 
+# validation_epochs=1, 
+# max_train_samples=None, 
+# output_dir='instruct-pix2pix-model', 
+# cache_dir=None, 
+# seed=42, 
+# resolution=256, 
+# center_crop=False, 
+# random_flip=True, 
+# train_batch_size=4, 
+# num_train_epochs=100, 
+# max_train_steps=15000, 
+# gradient_accumulation_steps=4, 
+# gradient_checkpointing=True, 
+# learning_rate=5e-05, 
+# scale_lr=False, 
+# lr_scheduler='constant', 
+# lr_warmup_steps=0, 
+# conditioning_dropout_prob=0.05, 
+# use_8bit_adam=False, 
+# allow_tf32=False, 
+# use_ema=False, 
+# non_ema_revision=None, 
+# dataloader_num_workers=0, 
+# adam_beta1=0.9, 
+# adam_beta2=0.999, 
+# adam_weight_decay=0.01, 
+# adam_epsilon=1e-08,
+#  max_grad_norm=1.0, 
+# push_to_hub=False, 
+# hub_token=None, 
+# hub_model_id=None, 
+# logging_dir='logs', 
+# mixed_precision='fp16', 
+# report_to='tensorboard', 
+# local_rank=-1, 
+# checkpointing_steps=5000, 
+# checkpoints_total_limit=1, 
+# resume_from_checkpoint=None, 
+# enable_xformers_memory_efficient_attention=True
+# )
