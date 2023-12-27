@@ -91,6 +91,43 @@ unzip anime-gan.zip
 }
 ```
 
+### 2.4 TRAIN STABLE DIFFUSION
+{
+    "name": "train_sd",
+    "type": "python",
+    "request": "launch",
+    "module": "accelerate.commands.launch",
+    "console": "integratedTerminal",
+    "justMyCode": true,
+    "args": [
+        "train_instruct_pix2pix.py",
+        "--pretrained_model_name_or_path", "runwayml/stable-diffusion-v1-5",
+        "--dataset_name", "fusing/instructpix2pix-1000-samples",
+        "--enable_xformers_memory_efficient_attention",
+        "--resolution", "256",
+        "--random_flip",
+        "--train_batch_size", "4", 
+        "--gradient_accumulation_steps", "4",
+        "--gradient_checkpointing",
+        "--max_train_steps", "4708",
+        "--checkpointing_steps", "1000",
+        "--checkpoints_total_limit", "1",
+        "--learning_rate", "5e-05", 
+        "--max_grad_norm", "1", 
+        "--lr_warmup_steps", "0",
+        "--conditioning_dropout_prob", "0.05",
+        "--mixed_precision", "fp16",
+        "--num_train_epochs", "100",
+        "--seed", "42",
+        // "--push_to_hub"
+    ]
+}
+Set the following ENV Variables:
+```
+export MODEL_NAME="runwayml/stable-diffusion-v1-5"
+export DATASET_ID="fusing/instructpix2pix-1000-samples"
+```
+
 -----------------------
 ## 3. RESULTS
 
