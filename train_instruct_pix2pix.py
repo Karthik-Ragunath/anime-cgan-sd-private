@@ -392,10 +392,14 @@ def main():
     logging_dir = os.path.join(args.output_dir, args.logging_dir)
     accelerator_project_config = ProjectConfiguration(project_dir=args.output_dir, logging_dir=logging_dir) # accelerator_project_config = ProjectConfiguration(project_dir='instruct-pix2pix-model', logging_dir='instruct-pix2pix-model/logs', automatic_checkpoint_naming=False, total_limit=None, iteration=0, save_on_each_node=False)
     accelerator = Accelerator(
-        gradient_accumulation_steps=args.gradient_accumulation_steps, # 4
-        mixed_precision=args.mixed_precision, # 'fp16'
-        log_with=args.report_to, # 'tensorboard'
-        project_config=accelerator_project_config, # ProjectConfiguration(project_dir='instruct-pix2pix-model', logging_dir='instruct-pix2pix-model/logs', automatic_checkpoint_naming=False, total_limit=None, iteration=0, save_on_each_node=False)
+        gradient_accumulation_steps=args.gradient_accumulation_steps, 
+        # 4
+        mixed_precision=args.mixed_precision, 
+        # 'fp16'
+        log_with=args.report_to, 
+        # 'tensorboard'
+        project_config=accelerator_project_config, 
+        # ProjectConfiguration(project_dir='instruct-pix2pix-model', logging_dir='instruct-pix2pix-model/logs', automatic_checkpoint_naming=False, total_limit=None, iteration=0, save_on_each_node=False)
     )
 
     generator = torch.Generator(device=accelerator.device).manual_seed(args.seed)
@@ -660,23 +664,34 @@ def main():
         # tokenizer.model_max_length = 77
         
         return inputs.input_ids 
-        # inputs.keys() = dict_keys(['input_ids', 'attention_mask']) # inputs.input_ids.shape = torch.Size([4, 77])
+        # inputs.keys() = dict_keys(['input_ids', 'attention_mask']) 
+        # # inputs.input_ids.shape = torch.Size([4, 77])
 
     # Preprocessing the datasets.
     train_transforms = transforms.Compose(
         [
-            transforms.CenterCrop(args.resolution) if args.center_crop else transforms.RandomCrop(args.resolution), # args.center_crop = False # args.resolution = 256
-            transforms.RandomHorizontalFlip() if args.random_flip else transforms.Lambda(lambda x: x), # args.random_flip = True
+            transforms.CenterCrop(args.resolution) if args.center_crop else transforms.RandomCrop(args.resolution), 
+            # args.center_crop = False 
+            # # args.resolution = 256
+            
+            transforms.RandomHorizontalFlip() if args.random_flip else transforms.Lambda(lambda x: x), 
+            # args.random_flip = True
         ]
     )
 
     def preprocess_images(examples):
         original_images = np.concatenate(
-            [convert_to_np(image, args.resolution) for image in examples[original_image_column]] # original_image_column = 'input_image' # examples.keys() = dict_keys(['input_image', 'edit_prompt', 'edited_image']) # args.resolution = 256 # examples['input_image'][0].size = (512, 512)
-        ) # original_images.shape = (12, 256, 256)
+            [convert_to_np(image, args.resolution) for image in examples[original_image_column]] 
+            # original_image_column = 'input_image' 
+            # # examples.keys() = dict_keys(['input_image', 'edit_prompt', 'edited_image']) 
+            # # args.resolution = 256 # examples['input_image'][0].size = (512, 512)
+        ) 
+        # original_images.shape = (12, 256, 256)
         
         edited_images = np.concatenate(
-            [convert_to_np(image, args.resolution) for image in examples[edited_image_column]] # edited_image_column = 'edited_image' # examples['edited_image'][0].size = (512, 512)
+            [convert_to_np(image, args.resolution) for image in examples[edited_image_column]] 
+            # edited_image_column = 'edited_image' 
+            # # examples['edited_image'][0].size = (512, 512)
         ) 
         # edited_images.shape = (12, 256, 256)
         
@@ -695,10 +710,13 @@ def main():
 
     def preprocess_train(examples):
         # Preprocess images.
-        preprocessed_images = preprocess_images(examples) # preprocessed_images.shape = torch.Size([24, 256, 256]) # dict_keys(['input_image', 'edit_prompt', 'edited_image'])
+        preprocessed_images = preprocess_images(examples) 
+        # preprocessed_images.shape = torch.Size([24, 256, 256]) 
+        # # dict_keys(['input_image', 'edit_prompt', 'edited_image'])
         # Since the original and edited images were concatenated before
         # applying the transformations, we need to separate them and reshape
         # them accordingly.
+
         original_images, edited_images = preprocessed_images.chunk(2) 
         # torch.Size([12, 256, 256]) # torch.Size([12, 256, 256])
         
