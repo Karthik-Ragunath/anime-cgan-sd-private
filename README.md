@@ -152,9 +152,12 @@ We have used `DDPMScheduler` as the scheduler for our diffusion process. This sc
 
 ```
 Example:
-noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler") # args.pretrained_model_name_or_path = "runwayml/stable-diffusion-v1-5"
+noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler") 
+# args.pretrained_model_name_or_path = "runwayml/stable-diffusion-v1-5"
+
 noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps) 
-# noisy_latents.shape = torch.Size([4, 4, 32, 32]) # noise_scheduler = <DDPMScheduler, len() = 1000>
+# noisy_latents.shape = torch.Size([4, 4, 32, 32]) 
+# noise_scheduler = <DDPMScheduler, len() = 1000>
 ```
 
 Work by Sohl-Dickstein et al., has shown that we can sample xt at any arbitrary timestep (noise level) conditioned based on x at 0th timestep (x0). 
@@ -191,9 +194,15 @@ The output values will indicate the token_id (integers) which denote the id of t
 # We need to tokenize input captions and transform the images.
 def tokenize_captions(captions):
     inputs = tokenizer(
-        captions, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt" # tokenizer.model_max_length = 77 # captions = ['']
-    ) # tokenizer.model_max_length = 77
-    return inputs.input_ids # inputs.keys() = dict_keys(['input_ids', 'attention_mask']) # inputs.input_ids.shape = torch.Size([4, 77])
+        captions, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt" 
+        # tokenizer.model_max_length = 77 
+        # captions = ['']
+    ) 
+    # tokenizer.model_max_length = 77
+    
+    return inputs.input_ids 
+    # inputs.keys() = dict_keys(['input_ids', 'attention_mask']) 
+    # inputs.input_ids.shape = torch.Size([4, 77])
 ```
 
 __3.__ `CLIPTextModel`
