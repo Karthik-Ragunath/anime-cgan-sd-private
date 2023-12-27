@@ -141,7 +141,7 @@ CONDITIONAL QUERY - "turn green chairs into blue"
 ![Stable Diffusion Edited Image](save_imgs/inference_images/10_anime_stable_diffused.jpg)
 
 -----------------------
-## 4. STABLE DIFFUSION MODEL TRAINING PROCESS
+## `4. INSTRUCT-PIX2PIX STABLE DIFFUSION MODEL TRAINING PROCESS`
 
 ### 4.1 CONCEPTS INVOLVED FROM CODE IMPLEMENTATION POV
 
@@ -294,7 +294,7 @@ Then the predicted noise is compared with ground truth noise which was added at 
 This loss guides the stable-diffusion pipelines backpropagation updates to fine-tune the models chained in this stable-diffusion pipeline. 
 In our experiment, we are only fine-tuning the UNet2DConditionalModel present in the pipeline.
 
-## 4.2 `Input and Output:`
+## 4.2 INPUTS and OUTPUTS
 
 The inputs for our training process are:
 __(i)__ `input_image` - Image of shape 512 * 512
