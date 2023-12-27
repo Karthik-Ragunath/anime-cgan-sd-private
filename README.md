@@ -92,6 +92,7 @@ unzip anime-gan.zip
 ```
 
 ### 2.4 TRAIN STABLE DIFFUSION
+```
 {
     "name": "train_sd",
     "type": "python",
@@ -122,6 +123,7 @@ unzip anime-gan.zip
         // "--push_to_hub"
     ]
 }
+```
 
 -----------------------
 ## 3. RESULTS
@@ -211,7 +213,11 @@ __3.__ `CLIPTextModel`
 text_encoder = CLIPTextModel.from_pretrained(
     args.pretrained_model_name_or_path, subfolder="text_encoder"
 )
-encoder_hidden_states = text_encoder(batch["input_ids"])[0] # torch.Size([4, 77, 768]) # batch["input_ids"].shape = torch.Size([4, 77]) # len(text_encoder(batch["input_ids"])) = 2 # text_encoder(batch["input_ids"])[0].shape = torch.Size([4, 77, 768]) # text_encoder(batch["input_ids"])[1].shape = torch.Size([4, 768])
+encoder_hidden_states = text_encoder(batch["input_ids"])[0] # torch.Size([4, 77, 768]) 
+# batch["input_ids"].shape = torch.Size([4, 77]) 
+# len(text_encoder(batch["input_ids"])) = 2 
+# text_encoder(batch["input_ids"])[0].shape = torch.Size([4, 77, 768]) 
+# text_encoder(batch["input_ids"])[1].shape = torch.Size([4, 768])
 ```
 
 The input to this `CLIPTextModel` instance: `text_encoder` is the padded token ids from `CLIPTokenizer` which we saw previously
