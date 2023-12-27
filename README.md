@@ -122,11 +122,6 @@ unzip anime-gan.zip
         // "--push_to_hub"
     ]
 }
-Set the following ENV Variables:
-```
-export MODEL_NAME="runwayml/stable-diffusion-v1-5"
-export DATASET_ID="fusing/instructpix2pix-1000-samples"
-```
 
 -----------------------
 ## 3. RESULTS
