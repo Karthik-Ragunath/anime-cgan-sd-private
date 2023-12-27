@@ -169,7 +169,7 @@ The diffusers subfolder as mentioned in
 ```
 noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
 ```
-it is found in:
+is found in:
 `cd ~/anaconda3/envs/sd/lib/python3.10/site-packages/diffusers/schedulers/`
 
 __2.__ `CLIPTokenizer`
