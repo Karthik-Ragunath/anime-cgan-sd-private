@@ -213,8 +213,37 @@ The outputs are encoding latents of shape - (batch_size, 4, 32, 32)
 The output is of type `DiagonalGaussianDistribution` which means that both `mean` and `covariance` outputs/parameters of gaussian model are of same dimension. 
 This basically means that this model assumes that there is zero co-variance between different dimensions of the gaussian model and hence the covariance matrix is basically a diagonal matrix. Hence, instead of requiring N^2 dimensional data to represent co-variance output, co-variance can be represented with only N dimensional data (same as that of mean of gaussian model).
 
+__5.__ UNet2DConditionModel
 
 
+UNet2DConditionModel is the most important component of the diffusion pipeline.
 
+```
+unet = UNet2DConditionModel.from_pretrained(
+    args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision # args.non_ema_revision = None
+) # <UNet2DConditionModel>
+```
 
+UNet2DConditionModel is a variant of the unet model which takes text encoding (text queries) as conditional input offered by diffusers PyPi package. We use the pre-trained weights from HuggingFace platform.
 
+Deeper look at UNet2DConditionalModel:
+
+```
+# Predict the noise residual and compute loss
+
+model_pred = unet(concatenated_noisy_latents, timesteps, encoder_hidden_states).sample 
+# torch.Size([4, 4, 32, 32]) 
+# vars(unet(concatenated_noisy_latents, timesteps, encoder_hidden_states)) = {'sample': tensor([[[[-0.9248, ...ackward0>)}
+
+loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean") 
+# tensor(0.1638, device='cuda:0', grad_fn=<MseLossBackward0>)
+```
+
+This component produces the output whose shape is same as that of the input latent encoding. (batch_size, 4, 32, 32)
+This output basically represents the noise level added at the specific timestep.
+
+Then the predicted noise is compared with ground truth noise which was added at that particular timestep. We use L2 loss to compute the loss between predicted and ground truth noise.
+
+This loss guides the entire pipelines backpropagation updates to fine-tune all the models chained in this stable-diffusion pipeline.
+
+-----------------------
