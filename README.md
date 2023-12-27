@@ -107,7 +107,7 @@ CONDITIONAL QUERY - "turn green chairs into blue"
 ![Stable Diffusion Edited Image](save_imgs/inference_images/10_anime_stable_diffused.jpg)
 
 -----------------------
-## 4. DIFFUSION MODEL TRAINING
+## 4. STABLE DIFFUSION MODEL TRAINING
 
 ### 4.1 CONCEPTS INVOLVED FROM CODE IMPLEMENTATION POV
 
