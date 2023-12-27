@@ -21,7 +21,7 @@ def compute_data_mean(directory_path):
 
 class AnimeDataSet(Dataset):
     def __init__(self, args):
-        data_directory = args.data_dir
+        data_directory = args.data_directory
         dataset = args.dataset
         anime_files_dir = os.path.join(data_directory, dataset)
         if not os.path.exists(anime_files_dir):

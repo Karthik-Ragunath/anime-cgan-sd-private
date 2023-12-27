@@ -12,92 +12,81 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
+                "--resume_cond", "gen_dis",
                 "--dataset", "Hayao",
-                "--batch", "6",
-                "--init-epochs", "4",
-                // "--checkpoint-dir", "checkpoints",
-                // "--save-image-dir", "save_imgs",
-                "--checkpoint-dir", "checkpoints_new",
-                "--save-image-dir", "save_imgs_new",
+                "--use_spectral_norm",
+                "--lr-discriminator", "0.00004",
+                "--batch-size", "6",
+                "--initial-epochs", "1",
+                "--initial-lr", "0.0001",
                 "--save-interval", "1",
-                "--gan-loss", "lsgan",
-                "--init-lr", "0.0001",
-                "--lr-g", "0.00002",
-                "--lr-d", "0.00004",
-                "--wadvd", "10.0",            
-                "--wadvg", "10.0",              
-                "--wcon", "1.5",              
-                "--wgra", "3.0",                
-                "--wcol", "30.0",                 
-                "--resume", "GD",               
-                "--use_sn"
-            ]
-        },
-        {
-            "name": "train_rewrite",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/train_rewrite.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--dataset", "Hayao",
-                "--batch", "6",
-                "--init-epochs", "1",
-                "--checkpoint-dir", "checkpoints_rewrite_mod",
-                "--save-image-dir", "save_imgs_rewrite_mod",
-                "--save-interval", "1",
-                "--gan-loss", "lsgan",
-                "--init-lr", "0.0001",
-                "--lr-g", "0.00002",
-                "--lr-d", "0.00004",
-                "--adversarial_loss_disc_weight", "10.0",            
+                "--lr-generator", "0.00002",
+                "--checkpoint-dir", "checkpoints",
+                "--adversarial_loss_disc_weight", "10.0",
+                "--save-image-dir", "save_imgs",          
                 "--adversarial_loss_gen_weight", "10.0",              
                 "--content_loss_weight", "1.5",              
                 "--gram_loss_weight", "3.0",                
                 "--chromatic_loss_weight", "30.0",                
-                "--resume", "GD",               
-                "--use_sn"
             ]
         },
         {
-            "name": "edit_cli",
+            "name": "inference",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/edit_cli.py",
+            "program": "${workspaceFolder}/inference.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--input", "save_imgs/inference_images/10_anime.jpg",
-                "--output", "save_imgs/inference_images/10_anime_stable_diffused.jpg",
-                "--edit", "turn green chairs into blue"
-            ]
-        },
-        {
-            "name": "animegan_inference",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/inference_image.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--checkpoint", "checkpoints/generator_Hayao.pth",
-                "--src", "example/result/140.jpeg",
-                "--dest", "save_imgs/inference_images/140_anime.jpg",
-            ]
-        },
-        {
-            "name": "animegan_minimal_inference",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/inference_new.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--checkpoint_path", "checkpoints_rewrite/generator_Hayao.pth",
+                "--checkpoint_path", "checkpoints/generator_Hayao.pth",
                 "--source_file_path", "example/result/140.jpeg",
-                "--destination_file_path", "save_imgs_rewrite/inference_images/140_anime.jpg",
+                "--destination_file_path", "save_imgs/inference_images/140_anime.jpg",
+            ]
+        },
+        {
+            "name": "stable_diffusion_edits",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/stable_diffusion_inference.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--source_file_path", "save_imgs/inference_images/140_anime.jpg",
+                "--destination_file_path", "save_imgs/inference_images/140_anime_stable_diffused.jpg",
+                "--edit_condition", "change the color of the bus to black"
+            ]
+        },
+        {
+            "name": "train_sd",
+            "type": "python",
+            "request": "launch",
+            "module": "accelerate.commands.launch",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "train_instruct_pix2pix.py",
+                "--pretrained_model_name_or_path", "runwayml/stable-diffusion-v1-5",
+                "--dataset_name", "fusing/instructpix2pix-1000-samples",
+                "--enable_xformers_memory_efficient_attention",
+                "--resolution", "256",
+                "--random_flip",
+                "--train_batch_size", "4", 
+                "--gradient_accumulation_steps", "4",
+                "--gradient_checkpointing",
+                "--max_train_steps", "4708",
+                "--checkpointing_steps", "1000",
+                "--checkpoints_total_limit", "1",
+                "--learning_rate", "5e-05", 
+                "--max_grad_norm", "1", 
+                "--lr_warmup_steps", "0",
+                "--conditioning_dropout_prob", "0.05",
+                "--mixed_precision", "fp16",
+                "--num_train_epochs", "100",
+                "--seed", "42",
+                // "--push_to_hub"
             ]
         }
     ]
 }
+
+// accelerate launch --mixed_precision="fp16" train_instruct_pix2pix.py --pretrained_model_name_or_path=$MODEL_NAME --dataset_name=$DATASET_ID --enable_xformers_memory_efficient_attention --resolution=256 --random_flip --train_batch_size=4 --gradient_accumulation_steps=4 --gradient_checkpointing --max_train_steps=4708 --checkpointing_steps=1000 --checkpoints_total_limit=1 --learning_rate=5e-05 --max_grad_norm=1 --lr_warmup_steps=0 --conditioning_dropout_prob=0.05 --mixed_precision=fp16 --seed=42
