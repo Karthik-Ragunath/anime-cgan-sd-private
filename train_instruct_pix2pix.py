@@ -926,52 +926,91 @@ def main():
 
                 # Get the additional image embedding for conditioning.
                 # Instead of getting a diagonal Gaussian here, we simply take the mode.
-                original_image_embeds = vae.encode(batch["original_pixel_values"].to(weight_dtype)).latent_dist.mode() # original_image_embeds.shape = torch.Size([4, 4, 32, 32]) # batch["original_pixel_values"].shape = torch.Size([4, 3, 256, 256])
+                original_image_embeds = vae.encode(batch["original_pixel_values"].to(weight_dtype)).latent_dist.mode() 
+                # original_image_embeds.shape = torch.Size([4, 4, 32, 32]) 
+                # # batch["original_pixel_values"].shape = torch.Size([4, 3, 256, 256])
 
                 # Conditioning dropout to support classifier-free guidance during inference. For more details
                 # check out the section 3.2.1 of the original paper https://arxiv.org/abs/2211.09800.
                 if args.conditioning_dropout_prob is not None: # 0.05
-                    random_p = torch.rand(bsz, device=latents.device, generator=generator) # torch.Size([4])
+                    random_p = torch.rand(bsz, device=latents.device, generator=generator) 
+                    # torch.Size([4])
+                    
                     # Sample masks for the edit prompts.
-                    prompt_mask = random_p < 2 * args.conditioning_dropout_prob # torch.Size([4]) # bsz = 4
-                    prompt_mask = prompt_mask.reshape(bsz, 1, 1) # torch.Size([4, 1, 1])
+                    prompt_mask = random_p < 2 * args.conditioning_dropout_prob 
+                    # torch.Size([4]) # bsz = 4
+                    
+                    prompt_mask = prompt_mask.reshape(bsz, 1, 1) 
+                    # torch.Size([4, 1, 1])
+                    
                     # Final text conditioning.
-                    null_conditioning = text_encoder(tokenize_captions([""]).to(accelerator.device))[0] # torch.Size([1, 77, 768]) # tokenize_captions([""]).shape = torch.Size([1, 77]) # len(text_encoder(tokenize_captions([""])) = 2 # text_encoder(tokenize_captions([""]).to(accelerator.device))[0].shape = torch.Size([1, 77, 768]) # text_encoder(tokenize_captions([""]).to(accelerator.device))[1].shape = torch.Size([1, 768])
-                    encoder_hidden_states = torch.where(prompt_mask, null_conditioning, encoder_hidden_states) # torch.Size([4, 77, 768]) # prompt_mask.shape = torch.Size([4, 1, 1]) # null_conditioning.shape = torch.Size([1, 77, 768]) # encoder_hidden_states.shape = torch.Size([4, 77, 768])
+                    null_conditioning = text_encoder(tokenize_captions([""]).to(accelerator.device))[0] 
+                    # torch.Size([1, 77, 768]) 
+                    # # tokenize_captions([""]).shape = torch.Size([1, 77]) 
+                    # # len(text_encoder(tokenize_captions([""])) = 2 
+                    # # text_encoder(tokenize_captions([""]).to(accelerator.device))[0].shape = torch.Size([1, 77, 768]) 
+                    # # text_encoder(tokenize_captions([""]).to(accelerator.device))[1].shape = torch.Size([1, 768])
+                    
+                    encoder_hidden_states = torch.where(prompt_mask, null_conditioning, encoder_hidden_states) 
+                    # torch.Size([4, 77, 768]) 
+                    # # prompt_mask.shape = torch.Size([4, 1, 1]) 
+                    # # null_conditioning.shape = torch.Size([1, 77, 768]) 
+                    # # encoder_hidden_states.shape = torch.Size([4, 77, 768])
 
                     # Sample masks for the original images.
-                    image_mask_dtype = original_image_embeds.dtype # torch.float16
+                    image_mask_dtype = original_image_embeds.dtype 
+                    # torch.float16
+                    
                     image_mask = 1 - (
-                        (random_p >= args.conditioning_dropout_prob).to(image_mask_dtype) # args.conditioning_dropout_prob = 0.05 # random_p.shape = torch.Size([4]) # image_mask_dtype =torch.float16
+                        (random_p >= args.conditioning_dropout_prob).to(image_mask_dtype) 
+                        # args.conditioning_dropout_prob = 0.05 
+                        # # random_p.shape = torch.Size([4]) 
+                        # # image_mask_dtype =torch.float16
                         * (random_p < 3 * args.conditioning_dropout_prob).to(image_mask_dtype)
                     )
-                    image_mask = image_mask.reshape(bsz, 1, 1, 1) # torch.Size([4])
+                    image_mask = image_mask.reshape(bsz, 1, 1, 1) 
+                    # torch.Size([4])
+                    
                     # Final image conditioning.
-                    original_image_embeds = image_mask * original_image_embeds # torch.Size([4, 4, 32, 32]) # original_image_embeds.shape = torch.Size([4, 4, 32, 32])
+                    original_image_embeds = image_mask * original_image_embeds 
+                    # torch.Size([4, 4, 32, 32]) 
+                    # # original_image_embeds.shape = torch.Size([4, 4, 32, 32])
 
                 # Concatenate the `original_image_embeds` with the `noisy_latents`.
-                concatenated_noisy_latents = torch.cat([noisy_latents, original_image_embeds], dim=1) # torch.Size([4, 8, 32, 32]) # noisy_latents.shape = torch.Size([4, 4, 32, 32]) # original_image_embeds.shape = torch.Size([4, 4, 32, 32])
+                concatenated_noisy_latents = torch.cat([noisy_latents, original_image_embeds], dim=1) 
+                # torch.Size([4, 8, 32, 32]) 
+                # # noisy_latents.shape = torch.Size([4, 4, 32, 32]) 
+                # # original_image_embeds.shape = torch.Size([4, 4, 32, 32])
 
                 # Get the target for loss depending on the prediction type
                 if noise_scheduler.config.prediction_type == "epsilon":
-                    target = noise # torch.Size([4, 4, 32, 32])
+                    target = noise 
+                    # torch.Size([4, 4, 32, 32])
                 elif noise_scheduler.config.prediction_type == "v_prediction":
                     target = noise_scheduler.get_velocity(latents, noise, timesteps)
                 else:
                     raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
 
                 # Predict the noise residual and compute loss
-                model_pred = unet(concatenated_noisy_latents, timesteps, encoder_hidden_states).sample # torch.Size([4, 4, 32, 32]) # vars(unet(concatenated_noisy_latents, timesteps, encoder_hidden_states)) = {'sample': tensor([[[[-0.9248, ...ackward0>)}
-                loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean") # tensor(0.1638, device='cuda:0', grad_fn=<MseLossBackward0>)
+                model_pred = unet(concatenated_noisy_latents, timesteps, encoder_hidden_states).sample 
+                # torch.Size([4, 4, 32, 32]) 
+                # # vars(unet(concatenated_noisy_latents, timesteps, encoder_hidden_states)) = {'sample': tensor([[[[-0.9248, ...ackward0>)}
+                
+                loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean") 
+                # tensor(0.1638, device='cuda:0', grad_fn=<MseLossBackward0>)
 
                 # Gather the losses across all processes for logging (if we use distributed training).
-                avg_loss = accelerator.gather(loss.repeat(args.train_batch_size)).mean() # tensor(0.1638, device='cuda:0', grad_fn=<MeanBackward0>)
-                train_loss += avg_loss.item() / args.gradient_accumulation_steps # 0.040958549827337265
+                avg_loss = accelerator.gather(loss.repeat(args.train_batch_size)).mean() 
+                # tensor(0.1638, device='cuda:0', grad_fn=<MeanBackward0>)
+                
+                train_loss += avg_loss.item() / args.gradient_accumulation_steps 
+                # 0.040958549827337265
 
                 # Backpropagate
                 accelerator.backward(loss)
                 if accelerator.sync_gradients: # False
-                    accelerator.clip_grad_norm_(unet.parameters(), args.max_grad_norm) # args.max_grad_norm = 1.0
+                    accelerator.clip_grad_norm_(unet.parameters(), args.max_grad_norm) 
+                    # args.max_grad_norm = 1.0
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()
