@@ -436,19 +436,29 @@ def main():
             ).repo_id
 
     # Load scheduler, tokenizer and models.
-    noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler") # <DDPMScheduler, len() = 1000>
+    noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler") 
+    # <DDPMScheduler, len() = 1000>
+    
     tokenizer = CLIPTokenizer.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision # args.revision = None
+        args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision 
+        # args.revision = None
     )
+    
     text_encoder = CLIPTextModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision, variant=args.variant # args.variant = None
+        args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision, variant=args.variant 
+        # args.variant = None
     )
+    
     vae = AutoencoderKL.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision, variant=args.variant
-    ) # <AutoencoderKL>
+    ) 
+    # <AutoencoderKL>
+    
     unet = UNet2DConditionModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision # args.non_ema_revision = None
-    ) # <UNet2DConditionModel>
+        args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision 
+        # args.non_ema_revision = None
+    ) 
+    # <UNet2DConditionModel>
 
     # InstructPix2Pix uses an additional image for conditioning. To accommodate that,
     # it uses 8 channels (instead of 4) in the first (conv) layer of the UNet. This UNet is
@@ -463,10 +473,21 @@ def main():
     with torch.no_grad():
         new_conv_in = nn.Conv2d(
             in_channels, out_channels, unet.conv_in.kernel_size, unet.conv_in.stride, unet.conv_in.padding
-        ) # in_channels = 8, out_channels = 320, unet.conv_in.kernel_size = (3, 3), unet.conv_in.stride = (1, 1), unet.conv_in.padding = (1, 1)
-        new_conv_in.weight.zero_() # new_conv_in.weight.shape = torch.Size([320, 8, 3, 3])
-        new_conv_in.weight[:, :4, :, :].copy_(unet.conv_in.weight) # new_conv_in.weight[:, :4, :, :].shape = torch.Size([320, 4, 3, 3])
-        unet.conv_in = new_conv_in # new_conv_in = Conv2d(8, 320, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        ) 
+        # in_channels = 8, 
+        # out_channels = 320, 
+        # unet.conv_in.kernel_size = (3, 3), 
+        # unet.conv_in.stride = (1, 1), 
+        # unet.conv_in.padding = (1, 1)
+
+        new_conv_in.weight.zero_() 
+        # new_conv_in.weight.shape = torch.Size([320, 8, 3, 3])
+        
+        new_conv_in.weight[:, :4, :, :].copy_(unet.conv_in.weight) 
+        # new_conv_in.weight[:, :4, :, :].shape = torch.Size([320, 4, 3, 3])
+        
+        unet.conv_in = new_conv_in 
+        # new_conv_in = Conv2d(8, 320, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
 
     # Freeze vae and text_encoder
     vae.requires_grad_(False)
@@ -480,7 +501,9 @@ def main():
         if is_xformers_available(): # True
             import xformers
 
-            xformers_version = version.parse(xformers.__version__) # <Version('0.0.23.post1')>
+            xformers_version = version.parse(xformers.__version__) 
+            # <Version('0.0.23.post1')>
+
             if xformers_version == version.parse("0.0.16"):
                 logger.warn(
                     "xFormers 0.0.16 cannot be used for training in some GPUs. If you observe problems during training, please update xFormers to at least 0.0.17. See https://huggingface.co/docs/diffusers/main/en/optimization/xformers for more details."
@@ -552,10 +575,14 @@ def main():
 
     optimizer = optimizer_cls(
         unet.parameters(),
-        lr=args.learning_rate, # 5e-05
-        betas=(args.adam_beta1, args.adam_beta2), # (0.9, 0.999)
-        weight_decay=args.adam_weight_decay, # 0.01
-        eps=args.adam_epsilon, # 1e-08
+        lr=args.learning_rate, 
+        # 5e-05
+        betas=(args.adam_beta1, args.adam_beta2), 
+        # (0.9, 0.999)
+        weight_decay=args.adam_weight_decay, 
+        # 0.01
+        eps=args.adam_epsilon, 
+        # 1e-08
     )
 
     # Get the datasets: you can either provide your own training and evaluation files (see below)
@@ -566,9 +593,12 @@ def main():
     if args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
         dataset = load_dataset(
-            args.dataset_name, # 'fusing/instructpix2pix-1000-samples'
-            args.dataset_config_name, # None
-            cache_dir=args.cache_dir, # None
+            args.dataset_name, 
+            # 'fusing/instructpix2pix-1000-samples'
+            args.dataset_config_name, 
+            # None
+            cache_dir=args.cache_dir, 
+            # None
         )
     else:
         data_files = {}
@@ -584,14 +614,17 @@ def main():
 
     # Preprocessing the datasets.
     # We need to tokenize inputs and targets.
-    column_names = dataset["train"].column_names # ['input_image', 'edit_prompt', 'edited_image']
+    column_names = dataset["train"].column_names 
+    # ['input_image', 'edit_prompt', 'edited_image']
 
     # 6. Get the column names for input/target.
-    dataset_columns = DATASET_NAME_MAPPING.get(args.dataset_name, None) # ('input_image', 'edit_prompt', 'edited_image')
+    dataset_columns = DATASET_NAME_MAPPING.get(args.dataset_name, None) 
+    # ('input_image', 'edit_prompt', 'edited_image')
     if args.original_image_column is None:
         original_image_column = dataset_columns[0] if dataset_columns is not None else column_names[0]
     else:
-        original_image_column = args.original_image_column # 'input_image'
+        original_image_column = args.original_image_column 
+        # 'input_image'
         if original_image_column not in column_names:
             raise ValueError(
                 f"--original_image_column' value '{args.original_image_column}' needs to be one of: {', '.join(column_names)}"
@@ -599,15 +632,18 @@ def main():
     if args.edit_prompt_column is None:
         edit_prompt_column = dataset_columns[1] if dataset_columns is not None else column_names[1]
     else:
-        edit_prompt_column = args.edit_prompt_column # 'edit_prompt'
-        if edit_prompt_column not in column_names: # column_names = ['input_image', 'edit_prompt', 'edited_image']
+        edit_prompt_column = args.edit_prompt_column 
+        # 'edit_prompt'
+        if edit_prompt_column not in column_names: 
+            # column_names = ['input_image', 'edit_prompt', 'edited_image']
             raise ValueError(
                 f"--edit_prompt_column' value '{args.edit_prompt_column}' needs to be one of: {', '.join(column_names)}"
             )
     if args.edited_image_column is None: # 'edited_image'
         edited_image_column = dataset_columns[2] if dataset_columns is not None else column_names[2]
     else:
-        edited_image_column = args.edited_image_column # 'edited_image'
+        edited_image_column = args.edited_image_column 
+        # 'edited_image'
         if edited_image_column not in column_names:
             raise ValueError(
                 f"--edited_image_column' value '{args.edited_image_column}' needs to be one of: {', '.join(column_names)}"
@@ -617,9 +653,14 @@ def main():
     # We need to tokenize input captions and transform the images.
     def tokenize_captions(captions):
         inputs = tokenizer(
-            captions, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt" # tokenizer.model_max_length = 77 # captions = ['']
-        ) # tokenizer.model_max_length = 77
-        return inputs.input_ids # inputs.keys() = dict_keys(['input_ids', 'attention_mask']) # inputs.input_ids.shape = torch.Size([4, 77])
+            captions, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt" 
+            # tokenizer.model_max_length = 77 
+            # captions = ['']
+        ) 
+        # tokenizer.model_max_length = 77
+        
+        return inputs.input_ids 
+        # inputs.keys() = dict_keys(['input_ids', 'attention_mask']) # inputs.input_ids.shape = torch.Size([4, 77])
 
     # Preprocessing the datasets.
     train_transforms = transforms.Compose(
@@ -633,14 +674,23 @@ def main():
         original_images = np.concatenate(
             [convert_to_np(image, args.resolution) for image in examples[original_image_column]] # original_image_column = 'input_image' # examples.keys() = dict_keys(['input_image', 'edit_prompt', 'edited_image']) # args.resolution = 256 # examples['input_image'][0].size = (512, 512)
         ) # original_images.shape = (12, 256, 256)
+        
         edited_images = np.concatenate(
             [convert_to_np(image, args.resolution) for image in examples[edited_image_column]] # edited_image_column = 'edited_image' # examples['edited_image'][0].size = (512, 512)
-        ) # edited_images.shape = (12, 256, 256)
+        ) 
+        # edited_images.shape = (12, 256, 256)
+        
         # We need to ensure that the original and the edited images undergo the same
         # augmentation transforms.
-        images = np.concatenate([original_images, edited_images]) # (24, 256, 256)
-        images = torch.tensor(images) # torch.Size([24, 256, 256])
-        images = 2 * (images / 255) - 1 # torch.Size([24, 256, 256])
+        images = np.concatenate([original_images, edited_images]) 
+        # (24, 256, 256)
+        
+        images = torch.tensor(images) 
+        # torch.Size([24, 256, 256])
+
+        images = 2 * (images / 255) - 1 
+        # torch.Size([24, 256, 256])
+
         return train_transforms(images)
 
     def preprocess_train(examples):
@@ -649,31 +699,58 @@ def main():
         # Since the original and edited images were concatenated before
         # applying the transformations, we need to separate them and reshape
         # them accordingly.
-        original_images, edited_images = preprocessed_images.chunk(2) # torch.Size([12, 256, 256]) # torch.Size([12, 256, 256])
-        original_images = original_images.reshape(-1, 3, args.resolution, args.resolution) # torch.Size([4, 3, 256, 256])
-        edited_images = edited_images.reshape(-1, 3, args.resolution, args.resolution) # torch.Size([4, 3, 256, 256])
+        original_images, edited_images = preprocessed_images.chunk(2) 
+        # torch.Size([12, 256, 256]) # torch.Size([12, 256, 256])
+        
+        original_images = original_images.reshape(-1, 3, args.resolution, args.resolution) 
+        # torch.Size([4, 3, 256, 256])
+        
+        edited_images = edited_images.reshape(-1, 3, args.resolution, args.resolution) 
+        # torch.Size([4, 3, 256, 256])
 
         # Collate the preprocessed images into the `examples`.
-        examples["original_pixel_values"] = original_images # examples.keys() = dict_keys(['input_image', 'edit_prompt', 'edited_image'])
+        examples["original_pixel_values"] = original_images 
+        # examples.keys() = dict_keys(['input_image', 'edit_prompt', 'edited_image'])
+        
         examples["edited_pixel_values"] = edited_images
 
         # Preprocess the captions.
-        captions = list(examples[edit_prompt_column]) # len(captions) = 4 # ['Make the ghost a can...corn ghost', 'have them be on a beach', 'Make it a watercolor', 'the puzzle is made out of wood']
-        examples["input_ids"] = tokenize_captions(captions) # torch.Size([4, 77])
+        captions = list(examples[edit_prompt_column]) 
+        # len(captions) = 4 
+        # ['Make the ghost a can...corn ghost', 'have them be on a beach', 'Make it a watercolor', 'the puzzle is made out of wood']
+        
+        examples["input_ids"] = tokenize_captions(captions) 
+        # torch.Size([4, 77])
+
         return examples
 
     with accelerator.main_process_first():
         if args.max_train_samples is not None: # None
             dataset["train"] = dataset["train"].shuffle(seed=args.seed).select(range(args.max_train_samples))
         # Set the training transforms
-        train_dataset = dataset["train"].with_transform(preprocess_train) # len(dataset["train"]) = 1000 # dataset["train"] # Dataset({features: ['input_image', 'edit_prompt', 'edited_image'], num_rows: 1000}) # see down
+        train_dataset = dataset["train"].with_transform(preprocess_train) 
+        # len(dataset["train"]) = 1000 # dataset["train"] 
+        # # Dataset({features: ['input_image', 'edit_prompt', 'edited_image'], num_rows: 1000})
+        # see at the bottom of page
 
     def collate_fn(examples):
-        original_pixel_values = torch.stack([example["original_pixel_values"] for example in examples]) # torch.Size([4, 3, 256, 256]) # len(examples) = 4 # examples[0]["original_pixel_values"].shape = torch.Size([3, 256, 256])
-        original_pixel_values = original_pixel_values.to(memory_format=torch.contiguous_format).float() # torch.Size([4, 3, 256, 256])
-        edited_pixel_values = torch.stack([example["edited_pixel_values"] for example in examples]) # torch.Size([4, 3, 256, 256])
-        edited_pixel_values = edited_pixel_values.to(memory_format=torch.contiguous_format).float() # torch.Size([4, 3, 256, 256])
-        input_ids = torch.stack([example["input_ids"] for example in examples]) # torch.Size([4, 77])
+        original_pixel_values = torch.stack([example["original_pixel_values"] for example in examples]) 
+        # torch.Size([4, 3, 256, 256]) 
+        # # len(examples) = 4 
+        # # examples[0]["original_pixel_values"].shape = torch.Size([3, 256, 256])
+        
+        original_pixel_values = original_pixel_values.to(memory_format=torch.contiguous_format).float() 
+        # torch.Size([4, 3, 256, 256])
+        
+        edited_pixel_values = torch.stack([example["edited_pixel_values"] for example in examples]) 
+        # torch.Size([4, 3, 256, 256])
+        
+        edited_pixel_values = edited_pixel_values.to(memory_format=torch.contiguous_format).float() 
+        # torch.Size([4, 3, 256, 256])
+        
+        input_ids = torch.stack([example["input_ids"] for example in examples]) 
+        # torch.Size([4, 77])
+        
         return {
             "original_pixel_values": original_pixel_values,
             "edited_pixel_values": edited_pixel_values,
@@ -682,26 +759,39 @@ def main():
 
     # DataLoaders creation:
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, # len(train_dataset) = 1000
+        train_dataset, 
+        # len(train_dataset) = 1000
         shuffle=True,
         collate_fn=collate_fn,
-        batch_size=args.train_batch_size, # 4
-        num_workers=args.dataloader_num_workers, # 0
+        batch_size=args.train_batch_size, 
+        # 4
+        num_workers=args.dataloader_num_workers, 
+        # 0
     )
 
     # Scheduler and math around the number of training steps.
     overrode_max_train_steps = False
 
-    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps) # 63 # len(train_dataloader) = 250 # args.gradient_accumulation_steps = 4
+    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps) 
+    # num_update_steps_per_epoch = 63 
+    # # len(train_dataloader) = 250 
+    # # args.gradient_accumulation_steps = 4
+    
     if args.max_train_steps is None:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
         overrode_max_train_steps = True
 
     lr_scheduler = get_scheduler(
-        args.lr_scheduler, # 'constant'
-        optimizer=optimizer, # see at bottom
-        num_warmup_steps=args.lr_warmup_steps * accelerator.num_processes, # args.lr_warmup_steps = 0, accelerator.num_processes = 1
-        num_training_steps=args.max_train_steps * accelerator.num_processes, # args.max_train_steps = 15000 # accelerator.num_processes = 1
+        args.lr_scheduler, 
+        # 'constant'
+        optimizer=optimizer, 
+        # see at bottom
+        num_warmup_steps=args.lr_warmup_steps * accelerator.num_processes, 
+        # args.lr_warmup_steps = 0, 
+        # accelerator.num_processes = 1
+        num_training_steps=args.max_train_steps * accelerator.num_processes, 
+        # args.max_train_steps = 15000 
+        # # accelerator.num_processes = 1
     )
 
     # Prepare everything with our `accelerator`.
@@ -778,10 +868,13 @@ def main():
     progress_bar = tqdm(range(global_step, args.max_train_steps), disable=not accelerator.is_local_main_process)
     progress_bar.set_description("Steps")
 
-    for epoch in range(first_epoch, args.num_train_epochs): # first_epoch = 0 # args.num_train_epochs = 239
+    for epoch in range(first_epoch, args.num_train_epochs): 
+        # first_epoch = 0 # args.num_train_epochs = 239
         unet.train()
         train_loss = 0.0
-        for step, batch in enumerate(train_dataloader): # len(train_dataloader) = 250
+        for step, batch in enumerate(train_dataloader): 
+            # len(train_dataloader) = 250
+            
             # Skip steps until we reach the resumed step
             if args.resume_from_checkpoint and epoch == first_epoch and step < resume_step: # args.resume_from_checkpoint = None
                 if step % args.gradient_accumulation_steps == 0:
@@ -792,22 +885,44 @@ def main():
                 # We want to learn the denoising process w.r.t the edited images which
                 # are conditioned on the original image (which was edited) and the edit instruction.
                 # So, first, convert images to latent space.
-                latents = vae.encode(batch["edited_pixel_values"].to(weight_dtype)).latent_dist.sample() # vae = <AutoencoderKL> # batch["edited_pixel_values"].shape = torch.Size([4, 3, 256, 256]) # weight_dtype = torch.float16 # vae.encode(batch["edited_pixel_values"].to(weight_dtype)).latent_dist = <diffusers.models.autoencoders.vae.DiagonalGaussianDistribution object at 0x7f404241c8e0>
-                latents = latents * vae.config.scaling_factor # latents.shape = torch.Size([4, 4, 32, 32]) # vae.config.scaling_factor = 0.18215
+                latents = vae.encode(batch["edited_pixel_values"].to(weight_dtype)).latent_dist.sample() 
+                # vae = <AutoencoderKL> 
+                # # batch["edited_pixel_values"].shape = torch.Size([4, 3, 256, 256]) 
+                # # weight_dtype = torch.float16 
+                # # vae.encode(batch["edited_pixel_values"].to(weight_dtype)).latent_dist = <diffusers.models.autoencoders.vae.DiagonalGaussianDistribution object at 0x7f404241c8e0>
+                
+                latents = latents * vae.config.scaling_factor 
+                # latents.shape = torch.Size([4, 4, 32, 32]) 
+                # # vae.config.scaling_factor = 0.18215
 
                 # Sample noise that we'll add to the latents
-                noise = torch.randn_like(latents) # torch.Size([4, 4, 32, 32])
+                noise = torch.randn_like(latents) 
+                # torch.Size([4, 4, 32, 32])
+                
                 bsz = latents.shape[0] # 4
+                
                 # Sample a random timestep for each image
-                timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device) # timesteps.shape = torch.Size([4]) # noise_scheduler.config.num_train_timesteps = 1000 # bsz = 4
-                timesteps = timesteps.long() # timesteps.shape = torch.Size([4])
+                timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device) 
+                # timesteps.shape = torch.Size([4]) 
+                # # noise_scheduler.config.num_train_timesteps = 1000 
+                # # bsz = 4
+                
+                timesteps = timesteps.long() 
+                # timesteps.shape = torch.Size([4])
                 # timesteps = tensor([561, 969,  58,  71], device='cuda:0')
+                
                 # Add noise to the latents according to the noise magnitude at each timestep
                 # (this is the forward diffusion process)
-                noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps) # noisy_latents.shape = torch.Size([4, 4, 32, 32]) # noise_scheduler = <DDPMScheduler, len() = 1000>
+                noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps) 
+                # noisy_latents.shape = torch.Size([4, 4, 32, 32]) 
+                # # noise_scheduler = <DDPMScheduler, len() = 1000>
 
                 # Get the text embedding for conditioning.
-                encoder_hidden_states = text_encoder(batch["input_ids"])[0] # torch.Size([4, 77, 768]) # batch["input_ids"].shape = torch.Size([4, 77]) # len(text_encoder(batch["input_ids"])) = 2 # text_encoder(batch["input_ids"])[0].shape = torch.Size([4, 77, 768]) # text_encoder(batch["input_ids"])[1].shape = torch.Size([4, 768])
+                encoder_hidden_states = text_encoder(batch["input_ids"])[0] 
+                # torch.Size([4, 77, 768]) # batch["input_ids"].shape = torch.Size([4, 77]) 
+                # # len(text_encoder(batch["input_ids"])) = 2 
+                # # text_encoder(batch["input_ids"])[0].shape = torch.Size([4, 77, 768]) 
+                # # text_encoder(batch["input_ids"])[1].shape = torch.Size([4, 768])
 
                 # Get the additional image embedding for conditioning.
                 # Instead of getting a diagonal Gaussian here, we simply take the mode.
